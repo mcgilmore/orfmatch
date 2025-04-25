@@ -12,40 +12,49 @@ import pyrodigal
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 
+
 def search_and_annotate(pred_feature, pred_seq, refs, feature_map, alphabet):
-        query = easel.TextSequence(name=b"query", sequence=pred_seq)
-        digital_query = query.digitize(alphabet)
-        results = hmmer.phmmer(digital_query, list(refs.values()))
+    query = easel.TextSequence(name=b"query", sequence=pred_seq)
+    digital_query = query.digitize(alphabet)
+    results = hmmer.phmmer(digital_query, list(refs.values()))
 
-        annotated = None
-        variants = []
-        matched = None
-        for hit_list in results:
-            if len(hit_list) > 0:
-                ref_locus = hit_list[0].name.decode()
-                ref_feature = feature_map.get(ref_locus)
-                if ref_feature:
-                    for key in ["locus_tag", "gene", "product", "note"]:
-                        if key in ref_feature.qualifiers:
-                            pred_feature.qualifiers[key] = ref_feature.qualifiers[key]
+    annotated = None
+    variants = []
+    matched = None
+    for hit_list in results:
+        if len(hit_list) > 0:
+            ref_locus = hit_list[0].name.decode()
+            ref_feature = feature_map.get(ref_locus)
+            if ref_feature:
+                for key in ["locus_tag", "gene", "product", "note"]:
+                    if key in ref_feature.qualifiers:
+                        pred_feature.qualifiers[key] = ref_feature.qualifiers[key]
 
-                    ref_prot = ref_feature.qualifiers["translation"][0]
-                    if str(pred_seq) != ref_prot:
-                        variants = [
-                            SeqRecord(Seq(pred_seq), id=f"prodigal_{ref_locus}", description=""),
-                            SeqRecord(Seq(ref_prot), id=f"reference_{ref_locus}", description="")
-                        ]
-                annotated = pred_feature
-                matched = ref_locus
-                break
-        return (annotated, variants, matched)
+                ref_prot = ref_feature.qualifiers["translation"][0]
+                if str(pred_seq) != ref_prot:  # Check for exact match
+                    variants = [
+                        SeqRecord(Seq(pred_seq),
+                                  id=f"prodigal_{ref_locus}", description=""),
+                        SeqRecord(Seq(ref_prot),
+                                  id=f"reference_{ref_locus}", description="")
+                    ]
+            annotated = pred_feature
+            matched = ref_locus
+            break
+    return (annotated, variants, matched)
+
 
 def main():
-    parser = argparse.ArgumentParser(description="Annotate Prodigal-predicted CDSs using a reference GBFF and pyhmmer.")
-    parser.add_argument("-i", "--input", required=True, help="Input FASTA assembly")
-    parser.add_argument("-r", "--reference", required=True, help="Reference GBFF file with annotations")
-    parser.add_argument("-o", "--output", required=True, help="Output GFF file with transferred annotations")
-    parser.add_argument("-v", "--variants", required=False, default=False, help="Output protein sequences which differ from reference genome")
+    parser = argparse.ArgumentParser(
+        description="Annotate Prodigal-predicted CDSs using a reference GBFF and pyhmmer.")
+    parser.add_argument("-i", "--input", required=True,
+                        help="Input FASTA assembly")
+    parser.add_argument("-r", "--reference", required=True,
+                        help="Reference GBFF file with annotations")
+    parser.add_argument("-o", "--output", required=True,
+                        help="Output GFF file with transferred annotations")
+    parser.add_argument("-v", "--variants", required=False, default=False,
+                        help="Output protein sequences which differ from reference genome")
     args = parser.parse_args()
 
     assembly_fasta = args.input
@@ -75,14 +84,16 @@ def main():
     # Step 2: Convert reference proteins to digital sequences for phmmer
     alphabet = easel.Alphabet.amino()
     digital_refs = {
-        rec.id: easel.TextSequence(name=rec.id.encode(), sequence=str(rec.seq)).digitize(alphabet)
+        rec.id: easel.TextSequence(
+            name=rec.id.encode(), sequence=str(rec.seq)).digitize(alphabet)
         for rec in reference_proteins
     }
 
     # Generate GFF-compatible records with feature lists
     prodigal_records = []
     for seq in contigs:
-        record = SeqRecord(seq.seq, id=seq.id, name=seq.name, description=seq.description)
+        record = SeqRecord(seq.seq, id=seq.id, name=seq.name,
+                           description=seq.description)
         record.annotations["molecule_type"] = "DNA"
         prodigal_records.append(record)
 
@@ -101,16 +112,17 @@ def main():
     predicted_features = []
     variant_records = []
 
-    print(f"Finding ORFs in assembly contigs")
+    print(f"Finding ORFs in assembly contigs...", end=" ")
     for seq_record in contigs:
         genes = gene_finder.find_genes(str(seq_record.seq))
-        record = next((r for r in prodigal_records if r.id == seq_record.id), None)
+        record = next(
+            (r for r in prodigal_records if r.id == seq_record.id), None)
         if not record:
-            print(f"Warning: No matching record found for contig {seq_record.id}")
+            print(
+                f"Warning: No matching record found for contig {seq_record.id}")
             continue
 
         for gene in genes:
-            #print(f"Found gene: start={gene.begin}, end={gene.end}, strand={gene.strand}")
             start = gene.begin
             end = gene.end
             location = FeatureLocation(start, end, strand=gene.strand)
@@ -118,9 +130,11 @@ def main():
                 "translation": [gene.translate()],
                 "ID": [f"{seq_record.id}_cds_{start}_{end}"]
             }
-            feature = SeqFeature(location=location, type="CDS", qualifiers=qualifiers)
+            feature = SeqFeature(
+                location=location, type="CDS", qualifiers=qualifiers)
             record.features.append(feature)
             predicted_features.append((feature, gene.translate()))
+    print(f"Found {len(predicted_features)}.")
 
     # Step 4: Search with phmmer (parallelized)
     exact_ref_lookup = {str(p.seq): p.id for p in reference_proteins}
@@ -154,26 +168,24 @@ def main():
                 variant_records.extend(variants)
             if matched:
                 matched_loci.add(matched)
-
-    # Remove matched refs from future searches
-    for locus in matched_loci:
-        digital_refs.pop(locus, None)
+            # Remove matched refs from future searches
+            for locus in matched_loci:
+                digital_refs.pop(locus, None)
 
     # Step 5: Output annotated GBFF
     # Output all contigs with their annotated features
     for record in prodigal_records:
-        record.features = [f for f in annotated_features if hasattr(f, "location") and hasattr(record, "id") and f.location is not None and record.id in f.qualifiers.get("ID", [""])[0]]
+        record.features = [f for f in annotated_features if hasattr(f, "location") and hasattr(
+            record, "id") and f.location is not None and record.id in f.qualifiers.get("ID", [""])[0]]
     with open(annotated_gbff, "w") as out_handle:
         SeqIO.write(prodigal_records, out_handle, "genbank")
 
-    # Step 6: Output variants
-    
-
-    # Step 7: Print summary
+    # Step 6: Print summary
     print("\n[Summary]")
     print(f"  Total reference proteins: {len(protein_feature_map)}")
     print(f"  Total predicted proteins: {len(predicted_features)}")
-    print(f"  Matched annotations: {len([f for f in annotated_features if 'locus_tag' in f.qualifiers])}")
+    print(
+        f"  Matched annotations: {len([f for f in annotated_features if 'locus_tag' in f.qualifiers])}")
     print(f"[✓] Annotated GBFF written to: {annotated_gbff}")
     if show_variants and variant_records:
         SeqIO.write(variant_records, variants_fasta, "fasta")
