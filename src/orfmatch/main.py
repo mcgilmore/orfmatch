@@ -10,6 +10,18 @@ from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
 
 
+def direct_match(predicted):
+    feature, seq = predicted
+    for ref_seq, ref_id in exact_ref_lookup.items():
+        if seq.replace("*", "").strip() == ref_seq.replace("*", "").strip():
+            ref_feature = protein_feature_map.get(ref_id)
+            if ref_feature:
+                for key in ["locus_tag", "gene", "product", "note"]:
+                    if key in ref_feature.qualifiers:
+                        feature.qualifiers[key] = ref_feature.qualifiers[key]
+                return ("annotated", feature)
+    return ("unmatched", (feature, seq))
+
 def search_and_annotate(pred_feature, pred_seq, refs, feature_map, alphabet):
     query = easel.TextSequence(name=b"query", sequence=pred_seq)
     digital_query = query.digitize(alphabet)
@@ -40,7 +52,8 @@ def search_and_annotate(pred_feature, pred_seq, refs, feature_map, alphabet):
             matched = ref_locus
             break
     return (annotated, variants, matched)
-
+    
+exact_ref_lookup = {}
 
 def main():
     parser = argparse.ArgumentParser(
@@ -68,6 +81,7 @@ def main():
 
     # Step 1: Extract reference protein sequences
     reference_proteins = []
+    global protein_feature_map
     protein_feature_map = {}
 
     for record in SeqIO.parse(reference_gbff, "genbank"):
@@ -78,6 +92,8 @@ def main():
                 protein = SeqRecord(Seq(prot_seq), id=locus, description="")
                 reference_proteins.append(protein)
                 protein_feature_map[locus] = feature
+
+    exact_ref_lookup.update({str(p.seq): p.id for p in reference_proteins})
 
     # Step 2: Convert reference proteins to digital sequences for phmmer
     alphabet = easel.Alphabet.amino()
@@ -141,38 +157,42 @@ def main():
     print(f"Found {len(predicted_features)}.")
 
     # Step 4: Directly match genes with their annotation for identical sequences
-    exact_ref_lookup = {str(p.seq): p.id for p in reference_proteins}
     annotated_features = []
+    unmatched = []
     variant_records = []
 
-    unmatched = []
-    for f, s in tqdm(predicted_features, desc="Checking for direct sequence matches", unit="cds"):
-        for ref_seq, ref_id in exact_ref_lookup.items():
-            if s.replace("*", "").strip() == ref_seq.replace("*", "").strip():
-                ref_feature = protein_feature_map.get(ref_id)
-                if ref_feature:
-                    for key in ["locus_tag", "gene", "product", "note"]:
-                        if key in ref_feature.qualifiers:
-                            f.qualifiers[key] = ref_feature.qualifiers[key]
-                    annotated_features.append(f)
-                break
-        else:
-            unmatched.append((f, s))
+    from concurrent.futures import as_completed
+
+    with ThreadPoolExecutor() as executor:
+        futures = [executor.submit(direct_match, p) for p in predicted_features]
+
+        with tqdm(total=len(futures), desc="Checking for direct sequence matches", unit="cds") as pbar:
+            for future in as_completed(futures):
+                status, result = future.result()
+                if status == "annotated":
+                    annotated_features.append(result)
+                else:
+                    unmatched.append(result)
+                pbar.update(1)
     print(f"Found {len(annotated_features)} direct sequence matches")
 
     # Step 4.5: Search with phmmer (parallelized)
+    from concurrent.futures import as_completed
+
     with ThreadPoolExecutor() as executor:
         futures = [executor.submit(search_and_annotate, f, s, digital_refs, protein_feature_map, alphabet)
                    for f, s in unmatched]
 
-        for future in tqdm(futures, desc="Annotating unmatched CDSs using pyhmmer", unit="cds"):
-            annotated, variants, matched = future.result()
-            if annotated:
-                annotated_features.append(annotated)
-            if variants:
-                variant_records.extend(variants)
-            if matched:
-                digital_refs.pop(locus, None)
+        with tqdm(total=len(futures), desc="Annotating unmatched CDSs using pyhmmer", unit="cds") as pbar:
+            for future in as_completed(futures):
+                annotated, variants, matched = future.result()
+                if annotated:
+                    annotated_features.append(annotated)
+                if variants:
+                    variant_records.extend(variants)
+                if matched:
+                    digital_refs.pop(matched, None)
+                pbar.update(1)
 
     # Step 5: Output annotated GBFF
     # Output all contigs with their annotated features
