@@ -656,7 +656,7 @@ packages:
 - pypi: .
   name: orfmatch
   version: 0.1.0
-  sha256: 07a367e6f942b4f92bcac4e56878db91e10e779035d60a50508f961ca063a0a5
+  sha256: 7ec32575154d2e46aacf76aafe28383f7b73f4de31748fa83f33240886e14020
   requires_dist:
   - pyrodigal>=3.6.3.post1,<4
   - pyhmmer>=0.11.0,<0.12

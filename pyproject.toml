@@ -6,6 +6,8 @@ version = "0.1.0"
 license = "GPL-3.0-only"
 license-files = ["LICENSE"]
 dependencies = [ "pyrodigal>=3.6.3.post1,<4", "pyhmmer>=0.11.0,<0.12", "biopython>=1.85,<2", "tqdm>=4.67.1,<5"]
+description = "Transfer feature annotations from a reference genome to a de novo assembled one."
+readme = "README.md"
 
 [build-system]
 build-backend = "hatchling.build"
@@ -23,3 +25,7 @@ orfmatch = { path = ".", editable = true }
 
 [tool.pixi.tasks]
 test-install = "pip install -e ."
+build = "hatch build"
+publish = "twine upload dist/*"
+minoe = "hatch version minor"
+patch = "hatch version patch"

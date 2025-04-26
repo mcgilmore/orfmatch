@@ -4,7 +4,9 @@ Transfer feature annotations from a reference genome to a *de novo* assembled on
 
 ## Installation
 
-Install from github:
+Install using pip:
+`pip install orfmatch`
+or from github:
 `pip install git+https://github.com/mcgilmore/orfmatch.git`
 
 ## Usage
