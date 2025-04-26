@@ -9,6 +9,7 @@ from pyhmmer import easel, hmmer
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+# TODO: Filtering of hits by E value to get rid of those which are unlikely to be true
 
 def direct_match(predicted):
     feature, seq = predicted
@@ -21,6 +22,7 @@ def direct_match(predicted):
                         feature.qualifiers[key] = ref_feature.qualifiers[key]
                 return ("annotated", feature)
     return ("unmatched", (feature, seq))
+
 
 def search_and_annotate(pred_feature, pred_seq, refs, feature_map, alphabet):
     query = easel.TextSequence(name=b"query", sequence=pred_seq)
@@ -53,7 +55,26 @@ def search_and_annotate(pred_feature, pred_seq, refs, feature_map, alphabet):
             break
     return (annotated, variants, matched)
 
+
+def search_rna_annotation(rna_id_query, contigs, dna_alphabet):
+    rna_id, query = rna_id_query
+    results = hmmer.nhmmer(query, [easel.TextSequence(name=rec.id.encode(
+    ), sequence=str(rec.seq)).digitize(dna_alphabet) for rec in contigs])
+    hits = []
+    for hit_list in results:
+        if len(hit_list) > 0:
+            top_hit = hit_list[0]
+            contig_name = top_hit.name.decode()
+            domain = top_hit.best_domain
+            start = domain.env_from
+            end = domain.env_to
+            strand = 1 if start < end else -1
+            hits.append((rna_id, contig_name, start, end, strand))
+    return hits
+
+
 exact_ref_lookup = {}
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -84,6 +105,10 @@ def main():
     global protein_feature_map
     protein_feature_map = {}
 
+    reference_rnas = []
+    rna_feature_map = {}
+
+    print("\nParsing reference sequence...", end=" ")
     for record in SeqIO.parse(reference_gbff, "genbank"):
         for feature in record.features:
             if feature.type == "CDS" and "translation" in feature.qualifiers:
@@ -92,8 +117,17 @@ def main():
                 protein = SeqRecord(Seq(prot_seq), id=locus, description="")
                 reference_proteins.append(protein)
                 protein_feature_map[locus] = feature
-
+            elif feature.type in {"tRNA", "rRNA", "ncRNA"}:
+                rna_seq = feature.extract(record.seq)
+                locus = feature.qualifiers.get("locus_tag", ["unknown"])[0]
+                reference_rnas.append(
+                    SeqRecord(rna_seq, id=locus, description=feature.type))
+                if locus not in rna_feature_map:
+                    rna_feature_map[locus] = []
+                rna_feature_map[locus].append(feature)
     exact_ref_lookup.update({str(p.seq): p.id for p in reference_proteins})
+    print(
+        f"Found {len(reference_proteins)} ORFs and {len(reference_rnas)} RNAs.")
 
     # Step 2: Convert reference proteins to digital sequences for phmmer
     alphabet = easel.Alphabet.amino()
@@ -101,6 +135,14 @@ def main():
         rec.id: easel.TextSequence(
             name=rec.id.encode(), sequence=str(rec.seq)).digitize(alphabet)
         for rec in reference_proteins
+    }
+
+    # Convert reference RNAs to digital sequences for nhmmer
+    dna_alphabet = easel.Alphabet.dna()
+    digital_rnas = {
+        rec.id: easel.TextSequence(
+            name=rec.id.encode(), sequence=str(rec.seq)).digitize(dna_alphabet)
+        for rec in reference_rnas
     }
 
     # Generate GFF-compatible records with feature lists
@@ -126,7 +168,7 @@ def main():
     predicted_features = []
     variant_records = []
 
-    print(f"\nFinding ORFs in assembly contigs...", end=" ")
+    print("Finding ORFs in assembly contigs...", end=" ")
     for seq_record in contigs:
         genes = gene_finder.find_genes(str(seq_record.seq))
         record = next(
@@ -162,7 +204,8 @@ def main():
     variant_records = []
 
     with ThreadPoolExecutor() as executor:
-        futures = [executor.submit(direct_match, p) for p in predicted_features]
+        futures = [executor.submit(direct_match, p)
+                   for p in predicted_features]
 
         with tqdm(total=len(futures), desc="Checking for direct sequence matches", unit="cds") as pbar:
             for future in as_completed(futures):
@@ -190,20 +233,54 @@ def main():
                     digital_refs.pop(matched, None)
                 pbar.update(1)
 
+    # Step 4.6: Search with nhmmer (for RNAs)
+    with ThreadPoolExecutor() as executor:
+        futures = [executor.submit(
+            search_rna_annotation, rna, contigs, dna_alphabet) for rna in digital_rnas.items()]
+
+        with tqdm(total=len(futures), desc="Annotating RNAs using pyhmmer", unit="rna") as pbar:
+            for future in as_completed(futures):
+                hits = future.result()
+                for rna_id, contig_name, start, end, strand in hits:
+                    start0 = min(start, end) - 1
+                    end0 = max(start, end)
+                    location = FeatureLocation(start0, end0, strand=strand)
+                    for rna_feature in rna_feature_map[rna_id]:
+                        feature_type = rna_feature.type
+                        qualifiers = rna_feature.qualifiers.copy()
+                        feature = SeqFeature(
+                            location=location, type=feature_type, qualifiers=qualifiers)
+
+                        for record in prodigal_records:
+                            if record.id == contig_name:
+                                record.features.append(feature)
+                pbar.update(1)
+
     # Step 5: Output annotated GBFF
     # Output all contigs with their annotated features
     for record in prodigal_records:
-        record.features = [f for f in annotated_features if hasattr(f, "location") and hasattr(
+        original_rna_features = [f for f in record.features if f.type in {"tRNA", "rRNA", "ncRNA"}]
+        # Add new annotated CDS features
+        matched_cds_features = [f for f in annotated_features if hasattr(f, "location") and hasattr(
             record, "id") and f.location is not None and record.id in f.qualifiers.get("ID", [""])[0]]
+
+        # Merge and sort
+        record.features = original_rna_features + matched_cds_features
+        record.features.sort(key=lambda f: min(int(f.location.start), int(f.location.end)))
     with open(annotated_gbff, "w") as out_handle:
         SeqIO.write(prodigal_records, out_handle, "genbank")
 
     # Step 6: Print summary
     print("\n[Summary]")
-    print(f"  Total reference proteins: {len(protein_feature_map)}")
+    print(f"  Total reference proteins: {len(reference_proteins)}")
     print(f"  Total predicted proteins: {len(predicted_features)}")
     print(
-        f"  Matched annotations: {len([f for f in annotated_features if 'locus_tag' in f.qualifiers])}")
+        f"  Matched annotations: {len([f for f in annotated_features if 'locus_tag' in f.qualifiers])}\n")
+    print(f"  Total reference RNAs: {len(reference_rnas)}")
+    total_identified_rnas = sum(
+        1 for record in prodigal_records for feature in record.features if feature.type in {"tRNA", "rRNA", "ncRNA"}
+    )
+    print(f"  Total identified RNAs: {total_identified_rnas}\n")
     print(f"[✓] Annotated GBFF written to: {annotated_gbff}\n")
     if show_variants and variant_records:
         SeqIO.write(variant_records, variants_fasta, "fasta")
@@ -220,7 +297,8 @@ def main():
                 reference_seq = str(reference_record.seq).rstrip("*")
 
                 alignment = aligner.align(prodigal_seq, reference_seq)[0]
-                aln_out.write(f"Alignment of {prodigal_record.id} and {reference_record.id}: \n")
+                aln_out.write(
+                    f"Alignment of {prodigal_record.id} and {reference_record.id}: \n")
                 aln_out.write(str(alignment) + "\n")
         print(f"[✓] Writing pairwise alignments of variants to alignments.txt")
 
