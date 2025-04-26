@@ -1,12 +1,12 @@
-# ref-annotate
+# orfmatch
 
 Transfer feature annotations from a reference genome to a *de novo* assembled one.
 
 ## Installation
 
 Install from github:
-`pip install git+https://github.com/mcgilmore/ref-annotate.git`
+`pip install git+https://github.com/mcgilmore/orfmatch.git`
 
 ## Usage
 
-`ref-annotate --input <> --reference <> --output <>`
+`orfmatch [-v (Optional: outputs sequence variants as fasta and alignments)] --input <assembly.fasta> --reference <reference.gbff> --output <output.gbff>`

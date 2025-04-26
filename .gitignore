@@ -7,3 +7,5 @@ __pycache__
 *.DS_Store
 tests/.DS_Store
 tests/test.gbff
+tests/variants.fasta
+tests/variant_alignments.txt

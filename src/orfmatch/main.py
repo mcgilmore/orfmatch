@@ -3,6 +3,7 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.SeqFeature import SeqFeature, FeatureLocation
+from Bio.Align import PairwiseAligner
 import pyrodigal
 from pyhmmer import easel, hmmer
 from tqdm import tqdm
@@ -27,11 +28,12 @@ def search_and_annotate(pred_feature, pred_seq, refs, feature_map, alphabet):
                         pred_feature.qualifiers[key] = ref_feature.qualifiers[key]
 
                 ref_prot = ref_feature.qualifiers["translation"][0]
-                if str(pred_seq) != ref_prot:  # Check for exact match
+                # Check for exact match, and if not, add to variants
+                if str(pred_seq).rstrip("*").strip() != ref_prot.rstrip("*").strip():
                     variants = [
-                        SeqRecord(Seq(pred_seq),
+                        SeqRecord(Seq(pred_seq.rstrip("*")),
                                   id=f"prodigal_{ref_locus}", description=""),
-                        SeqRecord(Seq(ref_prot),
+                        SeqRecord(Seq(ref_prot.rstrip("*")),
                                   id=f"reference_{ref_locus}", description="")
                     ]
             annotated = pred_feature
@@ -49,7 +51,7 @@ def main():
                         help="Reference GBFF file with annotations")
     parser.add_argument("-o", "--output", required=True,
                         help="Output GFF file with transferred annotations")
-    parser.add_argument("-v", "--variants", required=False, default=False,
+    parser.add_argument("-v", "--variants", action="store_true",
                         help="Output protein sequences which differ from reference genome")
     args = parser.parse_args()
 
@@ -186,11 +188,25 @@ def main():
     print(f"  Total predicted proteins: {len(predicted_features)}")
     print(
         f"  Matched annotations: {len([f for f in annotated_features if 'locus_tag' in f.qualifiers])}")
-    print(f"[✓] Annotated GBFF written to: {annotated_gbff}")
+    print(f"[✓] Annotated GBFF written to: {annotated_gbff}\n")
     if show_variants and variant_records:
         SeqIO.write(variant_records, variants_fasta, "fasta")
         print(f"  Variants found: {len(variant_records) // 2}")
         print(f"[✓] Variants saved to: {variants_fasta}")
+        with open("variant_alignments.txt", "w") as aln_out:
+            aligner = PairwiseAligner()
+            aligner.mode = "global"
+            for i in tqdm(range(0, len(variant_records), 2), desc="Aligning variants", unit="aln"):
+                prodigal_record = variant_records[i]
+                reference_record = variant_records[i+1]
+
+                prodigal_seq = str(prodigal_record.seq).rstrip("*")
+                reference_seq = str(reference_record.seq).rstrip("*")
+
+                alignment = aligner.align(prodigal_seq, reference_seq)[0]
+                aln_out.write(f"Alignment of {prodigal_record.id} and {reference_record.id}: \n")
+                aln_out.write(str(alignment) + "\n")
+        print(f"[✓] Writing pairwise alignments of variants to alignments.txt")
 
 
 if __name__ == "__main__":
