@@ -1,14 +1,13 @@
-import os
 import argparse
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.SeqFeature import SeqFeature, FeatureLocation
 import pyrodigal
-from pyhmmer import easel, plan7, hmmer
+from pyhmmer import easel, hmmer
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
-from collections import defaultdict
+
 
 def search_and_annotate(pred_feature, pred_seq, refs, feature_map, alphabet):
     query = easel.TextSequence(name=b"query", sequence=pred_seq)
@@ -121,13 +120,17 @@ def main():
 
         for gene in genes:
             if gene.strand == 1:
-                location = FeatureLocation(gene.begin - 1, gene.end, strand=gene.strand) # Forward strand CDSs need to be adjusted
+                # Forward strand CDSs need to be adjusted
+                location = FeatureLocation(
+                    gene.begin - 1, gene.end, strand=gene.strand)
             else:
-                location = FeatureLocation(gene.begin, gene.end, strand=gene.strand)
+                location = FeatureLocation(
+                    gene.begin, gene.end, strand=gene.strand)
 
             qualifiers = {
                 "translation": [gene.translate()],
-                "ID": [f"{seq_record.id}_cds_{gene.begin}_{gene.end}"] # TODO: Probably remove this ID
+                # TODO: Probably remove this ID
+                "ID": [f"{seq_record.id}_cds_{gene.begin}_{gene.end}"]
             }
             feature = SeqFeature(
                 location=location, type="CDS", qualifiers=qualifiers)
