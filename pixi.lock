@@ -655,8 +655,8 @@ packages:
   timestamp: 1744135594688
 - pypi: .
   name: orfmatch
-  version: 0.1.0
-  sha256: 7ec32575154d2e46aacf76aafe28383f7b73f4de31748fa83f33240886e14020
+  version: 0.1.1
+  sha256: 1c78ed6d3df918279b6e6994c2a5c4d5caeb212fea19da3ca97d0da141dbbdf8
   requires_dist:
   - pyrodigal>=3.6.3.post1,<4
   - pyhmmer>=0.11.0,<0.12
