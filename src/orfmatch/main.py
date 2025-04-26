@@ -7,7 +7,7 @@ from Bio.Align import PairwiseAligner
 import pyrodigal
 from pyhmmer import easel, hmmer
 from tqdm import tqdm
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 def direct_match(predicted):
@@ -52,7 +52,7 @@ def search_and_annotate(pred_feature, pred_seq, refs, feature_map, alphabet):
             matched = ref_locus
             break
     return (annotated, variants, matched)
-    
+
 exact_ref_lookup = {}
 
 def main():
@@ -161,8 +161,6 @@ def main():
     unmatched = []
     variant_records = []
 
-    from concurrent.futures import as_completed
-
     with ThreadPoolExecutor() as executor:
         futures = [executor.submit(direct_match, p) for p in predicted_features]
 
@@ -177,8 +175,6 @@ def main():
     print(f"Found {len(annotated_features)} direct sequence matches")
 
     # Step 4.5: Search with phmmer (parallelized)
-    from concurrent.futures import as_completed
-
     with ThreadPoolExecutor() as executor:
         futures = [executor.submit(search_and_annotate, f, s, digital_refs, protein_feature_map, alphabet)
                    for f, s in unmatched]
