@@ -656,12 +656,12 @@ packages:
 - pypi: .
   name: orfmatch
   version: 0.1.0
-  sha256: 60c09b0d05e2b05ba9d612c1c9b934b357904ae6ee57de4e8f2aa49a632492ed
+  sha256: 07a367e6f942b4f92bcac4e56878db91e10e779035d60a50508f961ca063a0a5
   requires_dist:
-  - pyrodigal
-  - pyhmmer
-  - biopython
-  - tqdm
+  - pyrodigal>=3.6.3.post1,<4
+  - pyhmmer>=0.11.0,<0.12
+  - biopython>=1.85,<2
+  - tqdm>=4.67.1,<5
   requires_python: '>=3.11'
   editable: true
 - pypi: https://files.pythonhosted.org/packages/0b/6b/73dbde0dd38f3782905d4587049b9be64d76671042fdcaf60e2430c6796d/psutil-6.1.1-cp36-abi3-macosx_11_0_arm64.whl
