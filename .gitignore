@@ -3,5 +3,7 @@
 .pixi
 *.egg-info
 
-__pycache__
-*/.DS_Store
+src/ref_annotate/__pycache__
+*.DS_Store
+tests/.DS_Store
+tests/test.gbff

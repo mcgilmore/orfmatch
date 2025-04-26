@@ -3,15 +3,12 @@ import argparse
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
-from Bio.SeqIO.FastaIO import FastaIterator
 from Bio.SeqFeature import SeqFeature, FeatureLocation
-from Bio import SeqIO
-from pyhmmer import easel, plan7, hmmer
-from collections import defaultdict
 import pyrodigal
-from concurrent.futures import ThreadPoolExecutor
+from pyhmmer import easel, plan7, hmmer
 from tqdm import tqdm
-
+from concurrent.futures import ThreadPoolExecutor
+from collections import defaultdict
 
 def search_and_annotate(pred_feature, pred_seq, refs, feature_map, alphabet):
     query = easel.TextSequence(name=b"query", sequence=pred_seq)
@@ -112,7 +109,7 @@ def main():
     predicted_features = []
     variant_records = []
 
-    print(f"Finding ORFs in assembly contigs...", end=" ")
+    print(f"\nFinding ORFs in assembly contigs...", end=" ")
     for seq_record in contigs:
         genes = gene_finder.find_genes(str(seq_record.seq))
         record = next(
@@ -123,12 +120,14 @@ def main():
             continue
 
         for gene in genes:
-            start = gene.begin
-            end = gene.end
-            location = FeatureLocation(start, end, strand=gene.strand)
+            if gene.strand == 1:
+                location = FeatureLocation(gene.begin - 1, gene.end, strand=gene.strand) # Forward strand CDSs need to be adjusted
+            else:
+                location = FeatureLocation(gene.begin, gene.end, strand=gene.strand)
+
             qualifiers = {
                 "translation": [gene.translate()],
-                "ID": [f"{seq_record.id}_cds_{start}_{end}"]
+                "ID": [f"{seq_record.id}_cds_{gene.begin}_{gene.end}"] # TODO: Probably remove this ID
             }
             feature = SeqFeature(
                 location=location, type="CDS", qualifiers=qualifiers)
@@ -136,11 +135,10 @@ def main():
             predicted_features.append((feature, gene.translate()))
     print(f"Found {len(predicted_features)}.")
 
-    # Step 4: Search with phmmer (parallelized)
+    # Step 4: Directly match genes with their annotation for identical sequences
     exact_ref_lookup = {str(p.seq): p.id for p in reference_proteins}
     annotated_features = []
     variant_records = []
-    matched_loci = set()
 
     unmatched = []
     for f, s in tqdm(predicted_features, desc="Checking for direct sequence matches", unit="cds"):
@@ -155,7 +153,9 @@ def main():
                 break
         else:
             unmatched.append((f, s))
+    print(f"Found {len(annotated_features)} direct sequence matches")
 
+    # Step 4.5: Search with phmmer (parallelized)
     with ThreadPoolExecutor() as executor:
         futures = [executor.submit(search_and_annotate, f, s, digital_refs, protein_feature_map, alphabet)
                    for f, s in unmatched]
@@ -167,9 +167,6 @@ def main():
             if variants:
                 variant_records.extend(variants)
             if matched:
-                matched_loci.add(matched)
-            # Remove matched refs from future searches
-            for locus in matched_loci:
                 digital_refs.pop(locus, None)
 
     # Step 5: Output annotated GBFF
