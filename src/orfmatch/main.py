@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
 
 
-def direct_match(predicted):
+def direct_match_protein(predicted):
     feature, seq = predicted
     for ref_seq, ref_id in exact_ref_lookup.items():
         if seq.replace("*", "").strip() == ref_seq.replace("*", "").strip():
@@ -24,7 +24,7 @@ def direct_match(predicted):
     return ("unmatched", (feature, seq))
 
 
-def search_and_annotate(pred_feature, pred_seq, refs, feature_map, alphabet, evalue_threshold):
+def hmm_search_protein(pred_feature, pred_seq, refs, feature_map, alphabet, evalue_threshold):
     query = easel.TextSequence(name=b"query", sequence=pred_seq)
     digital_query = query.digitize(alphabet)
     results = hmmer.phmmer(digital_query, list(refs.values()))
@@ -60,7 +60,7 @@ def search_and_annotate(pred_feature, pred_seq, refs, feature_map, alphabet, eva
     return (annotated, variants, matched)
 
 
-def search_rna_annotation(rna_id_query, contigs, dna_alphabet):
+def hmm_search_rna(rna_id_query, contigs, dna_alphabet):
     rna_id, query = rna_id_query
     results = hmmer.nhmmer(query, [easel.TextSequence(name=rec.id.encode(
     ), sequence=str(rec.seq)).digitize(dna_alphabet) for rec in contigs])
@@ -219,7 +219,7 @@ def main():
     variant_records = []
 
     with ThreadPoolExecutor(max_workers=args.threads) as executor:
-        futures = [executor.submit(direct_match, p)
+        futures = [executor.submit(direct_match_protein, p)
                    for p in predicted_features]
 
         with tqdm(total=len(futures), desc="[orfmatch] Checking for direct sequence matches", unit="cds") as pbar:
@@ -235,7 +235,7 @@ def main():
 
     # Step 4.5: Search with phmmer (parallelized)
     with ThreadPoolExecutor(max_workers=args.threads) as executor:
-        futures = [executor.submit(search_and_annotate, ftr, s, digital_refs, protein_feature_map, alphabet, args.evalue)
+        futures = [executor.submit(hmm_search_protein, ftr, s, digital_refs, protein_feature_map, alphabet, args.evalue)
                    for ftr, (ftr, s) in unmatched.items()]
 
         with tqdm(total=len(futures), desc="[orfmatch] Annotating unmatched CDSs using pyhmmer", unit="cds") as pbar:
@@ -263,7 +263,7 @@ def main():
     # Step 4.6: Search with nhmmer (for RNAs)
     with ThreadPoolExecutor(max_workers=args.threads) as executor:
         futures = [executor.submit(
-            search_rna_annotation, (rna_id, digitals[0]), contigs, dna_alphabet) 
+            hmm_search_rna, (rna_id, digitals[0]), contigs, dna_alphabet)
             for rna_id, digitals in digital_rnas.items()]
 
         with tqdm(total=len(futures), desc="[orfmatch] Annotating RNAs using pyhmmer", unit="rna") as pbar:
