@@ -18,7 +18,7 @@ class Circle:
                          dict(reversed(list(self.asm_gbk.get_seqid2size().items())))),
             start=-358,
             end=2,
-            space=1,
+            space=3,
             sector2clockwise={
                 seqid: False for seqid in self.asm_gbk.get_seqid2size().keys()},
         )
@@ -65,7 +65,6 @@ class Circle:
                 asm_locus_map[locus] = (seqid, f)
 
         import matplotlib.pyplot as plt
-        import random
 
         # Assign a color per reference contig
         ref_contig_colors = {}

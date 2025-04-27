@@ -1064,15 +1064,15 @@ packages:
   timestamp: 1744135594688
 - pypi: .
   name: orfmatch
-  version: 0.1.2
-  sha256: c438cfc5b8a737460701e56b9433fedd1774087a2ea09859b3ef08553ead7021
+  version: 0.2.0
+  sha256: b8aad267225c3833f7004045d07adf8a80cbb4a47b573b4fd7c9dcdf85a96b3b
   requires_dist:
   - pyrodigal>=3.6.3.post1,<4
   - pyhmmer>=0.11.0,<0.12
   - biopython>=1.85,<2
   - tqdm>=4.67.1,<5
   - pycirclize>=1.9.1,<2
-  requires_python: '>=3.11'
+  requires_python: '>=3.9'
   editable: true
 - pypi: https://files.pythonhosted.org/packages/20/12/38679034af332785aac8774540895e234f4d07f7545804097de4b666afd8/packaging-25.0-py3-none-any.whl
   name: packaging
