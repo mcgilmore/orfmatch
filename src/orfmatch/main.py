@@ -9,6 +9,7 @@ from pyhmmer import easel, hmmer
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
+from orfmatch.plots import Circle
 
 
 def direct_match_protein(predicted):
@@ -89,12 +90,15 @@ def main():
                         help="E-value threshold for accepting phmmer matches (default: 1e-5)")
     parser.add_argument("-t", "--threads", type=int, default=4,
                         help="Number of threads for parallel steps (default: 8)")
+    parser.add_argument("-c", "--circle", action="store_true",
+                        help="Output circular plot of reference against assembly anotations")
     parser.add_argument("-i", "--input", required=True,
                         help="Input FASTA assembly")
     parser.add_argument("-r", "--reference", required=True,
                         help="Reference GBFF file with annotations")
     parser.add_argument("-o", "--output", required=True,
                         help="Output GFF file with transferred annotations")
+
     args = parser.parse_args()
 
     import os
@@ -339,6 +343,10 @@ def main():
                     f"Alignment of {prodigal_record.id} and {reference_record.id}: \n")
                 aln_out.write(str(alignment) + "\n")
         log(f"[✓] Writing pairwise alignments of variants to alignments.txt")
+    if args.circle:
+        log("[✓] Plotting comparison and saving to circle.png")
+        circle = Circle(args.reference, args.output)
+        circle.plot(600)
 
 
 if __name__ == "__main__":
