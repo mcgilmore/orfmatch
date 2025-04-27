@@ -86,9 +86,9 @@ def main():
         description="Transfer feature annotations from a reference genome to a de novo assembled one.")
     parser.add_argument("-v", "--variants", action="store_true",
                         help="Output protein sequences which differ from reference genome")
-    parser.add_argument("-e", "--evalue", type=float, default=1e-5,
+    parser.add_argument("-e", "--e-value", type=float, default=1e-5,
                         help="E-value threshold for accepting phmmer matches (default: 1e-5)")
-    parser.add_argument("-t", "--threads", type=int, default=4,
+    parser.add_argument("-t", "--threads", type=int, default=8,
                         help="Number of threads for parallel steps (default: 8)")
     parser.add_argument("-c", "--circle", action="store_true",
                         help="Output circular plot of reference against assembly anotations")
@@ -245,7 +245,7 @@ def main():
 
     # Step 4.5: Search with phmmer (parallelized)
     with ThreadPoolExecutor(max_workers=args.threads) as executor:
-        futures = [executor.submit(hmm_search_protein, ftr, s, digital_refs, protein_feature_map, alphabet, args.evalue)
+        futures = [executor.submit(hmm_search_protein, ftr, s, digital_refs, protein_feature_map, alphabet, args.e_value)
                    for ftr, (ftr, s) in unmatched.items()]
 
         with tqdm(total=len(futures), desc="[orfmatch] Annotating unmatched CDSs using pyhmmer", unit="cds") as pbar:

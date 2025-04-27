@@ -5,7 +5,6 @@ from pycirclize import Circos
 
 class Circle:
     def __init__(self, reference, assembly):
-
         self.reference = reference
         self.assembly = assembly
 
@@ -85,4 +84,22 @@ class Circle:
                 color=color
             )
 
-        circos.savefig("plot.svg")
+        # Add Reference and Assembly side labels
+        circos.text(
+            "Reference",
+            r=72,
+            deg=90,
+            size=10,
+            orientation="vertical",
+            adjust_rotation=True
+        )
+        circos.text(
+            "Assembly",
+            r=72,
+            deg=-90,
+            size=10,
+            orientation="vertical",
+            adjust_rotation=True
+        )
+
+        circos.savefig("circle.svg")
