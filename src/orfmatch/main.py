@@ -83,18 +83,18 @@ exact_ref_lookup = {}
 def main():
     parser = argparse.ArgumentParser(
         description="Transfer feature annotations from a reference genome to a de novo assembled one.")
-    parser.add_argument("-i", "--input", required=True,
-                        help="Input FASTA assembly")
-    parser.add_argument("-r", "--reference", required=True,
-                        help="Reference GBFF file with annotations")
-    parser.add_argument("-o", "--output", required=True,
-                        help="Output GFF file with transferred annotations")
     parser.add_argument("-v", "--variants", action="store_true",
                         help="Output protein sequences which differ from reference genome")
     parser.add_argument("-e", "--evalue", type=float, default=1e-5,
                         help="E-value threshold for accepting phmmer matches (default: 1e-5)")
     parser.add_argument("-t", "--threads", type=int, default=4,
                         help="Number of threads for parallel steps (default: 8)")
+    parser.add_argument("-i", "--input", required=True,
+                        help="Input FASTA assembly")
+    parser.add_argument("-r", "--reference", required=True,
+                        help="Reference GBFF file with annotations")
+    parser.add_argument("-o", "--output", required=True,
+                        help="Output GFF file with transferred annotations")
     args = parser.parse_args()
 
     import os
@@ -126,6 +126,7 @@ def main():
     rna_feature_map = {}
 
     log("Parsing reference sequence...")
+    rna_id_counter = defaultdict(int)
     for record in SeqIO.parse(reference_gbff, "genbank"):
         for feature in record.features:
             if feature.type == "CDS" and "translation" in feature.qualifiers:
@@ -137,6 +138,11 @@ def main():
             elif feature.type in {"tRNA", "rRNA", "ncRNA"}:
                 rna_seq = feature.extract(record.seq)
                 locus = feature.qualifiers.get("locus_tag", ["unknown"])[0]
+
+                rna_id_counter[locus] += 1
+                if rna_id_counter[locus] > 1:
+                    locus = f"{locus}_{rna_id_counter[locus]}"
+
                 reference_rnas.append(
                     SeqRecord(rna_seq, id=locus, description=feature.type))
                 if locus not in rna_feature_map:
@@ -157,7 +163,8 @@ def main():
     dna_alphabet = easel.Alphabet.dna()
     digital_rnas = defaultdict(list)
     for rec in reference_rnas:
-        digital = easel.TextSequence(name=rec.id.encode(), sequence=str(rec.seq)).digitize(dna_alphabet)
+        digital = easel.TextSequence(name=rec.id.encode(
+        ), sequence=str(rec.seq)).digitize(dna_alphabet)
         digital_rnas[rec.id].append(digital)
 
     # Generate GFF-compatible records with feature lists
@@ -204,7 +211,6 @@ def main():
 
             qualifiers = {
                 "translation": [gene.translate()],
-                # TODO: Probably remove this ID
                 "ID": [f"{seq_record.id}_cds_{gene.begin}_{gene.end}"]
             }
             feature = SeqFeature(
@@ -289,14 +295,16 @@ def main():
     # Step 5: Output annotated GBFF
     # Output all contigs with their annotated features
     for record in prodigal_records:
-        original_rna_features = [f for f in record.features if f.type in {"tRNA", "rRNA", "ncRNA"}]
+        original_rna_features = [
+            f for f in record.features if f.type in {"tRNA", "rRNA", "ncRNA"}]
         # Add new annotated CDS features
         matched_cds_features = [f for f in annotated_features if hasattr(f, "location") and hasattr(
             record, "id") and f.location is not None and record.id in f.qualifiers.get("ID", [""])[0]]
 
         # Merge and sort
         record.features = original_rna_features + matched_cds_features
-        record.features.sort(key=lambda f: min(int(f.location.start), int(f.location.end)))
+        record.features.sort(key=lambda f: min(
+            int(f.location.start), int(f.location.end)))
     with open(annotated_gbff, "w") as out_handle:
         SeqIO.write(prodigal_records, out_handle, "genbank")
 
