@@ -344,9 +344,9 @@ def main():
                 aln_out.write(str(alignment) + "\n")
         log(f"[✓] Writing pairwise alignments of variants to alignments.txt")
     if args.circle:
-        log("[✓] Plotting comparison and saving to circle.png")
+        log("[✓] Plotting comparison and saving to circle.svg")
         circle = Circle(args.reference, args.output)
-        circle.plot(600)
+        circle.plot()
 
 
 if __name__ == "__main__":
