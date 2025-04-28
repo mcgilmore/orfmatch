@@ -11,3 +11,5 @@ tests/variants.fasta
 tests/variant_alignments.txt
 dist/
 tests/.DS_Store
+tests/circle.svg
+tests/out.fasta

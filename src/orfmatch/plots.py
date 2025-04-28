@@ -1,15 +1,13 @@
 from pycirclize.parser import Genbank
 from pycirclize import Circos
+import seaborn as sns
 # TODO: Different genome plots using pyGenomeViz
 
 
 class Circle:
     def __init__(self, reference, assembly):
-        self.reference = reference
-        self.assembly = assembly
-
-        self.ref_gbk = Genbank(self.reference)
-        self.asm_gbk = Genbank(self.assembly)
+        self.ref_gbk = Genbank(reference)
+        self.asm_gbk = Genbank(assembly)
 
     def plot(self):
         circos = Circos(
@@ -28,8 +26,8 @@ class Circle:
         for sector in circos.sectors:
             sector.text(
                 sector.name,
-                r=62,
-                size=8
+                r=61,
+                size=6
             )
             cds_track = sector.add_track((59.8, 60.2))
             cds_track.axis(fc="black", ec="none")
@@ -63,15 +61,13 @@ class Circle:
                 locus = f.qualifiers.get("locus_tag", [""])[0]
                 asm_locus_map[locus] = (seqid, f)
 
-        import matplotlib.pyplot as plt
-
-        # Assign a color per reference contig
+        # Assign a color per reference contig using seaborn
         ref_contig_colors = {}
-        ref_contigs = set(seqid for seqid, _ in ref_locus_map.values())
-        colormap = plt.get_cmap("tab20")
+        ref_contigs = sorted(set(seqid for seqid, _ in ref_locus_map.values()))
+        palette = sns.color_palette("muted", n_colors=len(ref_contigs))
 
-        for idx, seqid in enumerate(sorted(ref_contigs)):
-            ref_contig_colors[seqid] = colormap(idx % 20)
+        for idx, seqid in enumerate(ref_contigs):
+            ref_contig_colors[seqid] = palette[idx]
 
         # Now create links using the color per reference contig
         for locus in set(ref_locus_map.keys()) & set(asm_locus_map.keys()):
