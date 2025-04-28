@@ -10,6 +10,7 @@ description = "Transfer feature annotations from a reference genome to a de novo
 readme = "README.md"
 
 [project.urls]
+Homepage = "https://github.com/mcgilmore/orfmatch"
 Repository = "https://github.com/mcgilmore/orfmatch.git"
 
 [build-system]
