@@ -31,5 +31,3 @@ orfmatch = { path = ".", editable = true }
 test-install = "pip install -e ."
 build = "hatch build"
 publish = "twine upload dist/*"
-minoe = "hatch version minor"
-patch = "hatch version patch"

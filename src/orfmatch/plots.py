@@ -10,9 +10,13 @@ class Circle:
         self.asm_gbk = Genbank(assembly)
 
     def plot(self):
+        # Rename contigs to avoid problems with identically named ones
+        sectors = {}
+        sectors.update(self.ref_gbk.get_seqid2size())
+        sectors.update({f"ASM_{k}": v for k, v in reversed(list(self.asm_gbk.get_seqid2size().items()))})
+        
         circos = Circos(
-            sectors=dict(**self.ref_gbk.get_seqid2size(), **
-                         dict(reversed(list(self.asm_gbk.get_seqid2size().items())))),
+            sectors=sectors,
             start=-358,
             end=2,
             space=3,
@@ -24,15 +28,25 @@ class Circle:
         assembly_features = self.asm_gbk.get_seqid2features()
 
         for sector in circos.sectors:
+            label = sector.name
+            if label.startswith("ASM_"):
+                label = label.replace("ASM_", "")
             sector.text(
-                sector.name,
+                label,
                 r=61,
                 size=6
             )
             cds_track = sector.add_track((59.8, 60.2))
             cds_track.axis(fc="black", ec="none")
-            ref_sector_features = ref_features[sector.name]
-            assembly_sector_features = assembly_features[sector.name]
+            
+            if sector.name.startswith("ASM_"):
+                asm_name = sector.name.replace("ASM_", "")
+                ref_sector_features = []
+                assembly_sector_features = assembly_features.get(asm_name, [])
+            else:
+                ref_sector_features = ref_features.get(sector.name, [])
+                assembly_sector_features = []
+            
             for feature in ref_sector_features:
                 if feature.location.strand == 1:
                     cds_track.genomic_features(
@@ -57,9 +71,10 @@ class Circle:
 
         asm_locus_map = {}
         for seqid, features in assembly_features.items():
+            asm_seqid = f"ASM_{seqid}"  # <- Add prefix here
             for f in features:
                 locus = f.qualifiers.get("locus_tag", [""])[0]
-                asm_locus_map[locus] = (seqid, f)
+                asm_locus_map[locus] = (asm_seqid, f)
 
         # Assign a color per reference contig using seaborn
         ref_contig_colors = {}
