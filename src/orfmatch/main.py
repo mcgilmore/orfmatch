@@ -86,8 +86,8 @@ def main():
         description="Transfer feature annotations from a reference genome to a de novo assembled one.")
     parser.add_argument("-v", "--variants", action="store_true",
                         help="Output protein sequences which differ from reference genome")
-    parser.add_argument("-e", "--e-value", type=float, default=1e-5,
-                        help="E-value threshold for accepting phmmer matches (default: 1e-5)")
+    parser.add_argument("-e", "--e-value", type=float, default=1e-10,
+                        help="E-value threshold for accepting phmmer matches (default: 1e-10)")
     parser.add_argument("-t", "--threads", type=int, default=8,
                         help="Number of threads for parallel steps (default: 8)")
     parser.add_argument("-c", "--circle", action="store_true",
