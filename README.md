@@ -21,7 +21,8 @@ or from github:
 
 ### Optional
 
-- `-e` / `--e-value`: E value cutoff for phmmer protein match search (default: `1e-5`)
+- `-e` / `--e-value`: E value cutoff for phmmer protein match search (default: `1e-10`).
 - `-v` / `--variants`: Outputs matched sequences with differences from the reference to `variants.fasta` and alignment to `variants_alignment.txt`.
 - `-c` / `--circle`: Produces a circle plot with features mapped between reference and assembly in SVG format.
+- `-l` / `--line`: Produces a linear plot with features mapped between reference and assembly in SVG format.
 - `-t` / `--threads`: Number of threads used for processing (default: `8`)

@@ -9,7 +9,7 @@ from pyhmmer import easel, hmmer
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
-from orfmatch.plots import Circle
+from orfmatch.plots import Circle, Line
 
 
 def direct_match_protein(predicted):
@@ -92,6 +92,8 @@ def main():
                         help="Number of threads for parallel steps (default: 8)")
     parser.add_argument("-c", "--circle", action="store_true",
                         help="Output circular plot of reference against assembly anotations")
+    parser.add_argument("-l", "--line", action="store_true",
+                        help="Output linear plot of reference against assembly anotations")
     parser.add_argument("-i", "--input", required=True,
                         help="Input FASTA assembly")
     parser.add_argument("-r", "--reference", required=True,
@@ -344,9 +346,13 @@ def main():
                 aln_out.write(str(alignment) + "\n")
         log(f"[✓] Writing pairwise alignments of variants to alignments.txt")
     if args.circle:
-        log("[✓] Plotting comparison and saving to circle.svg")
+        log("[✓] Plotting circular comparison and saving to circle.svg")
         circle = Circle(args.reference, args.output)
         circle.plot()
+    if args.line:
+        log("[✓] Plotting linear comparison and saving to line.svg")
+        line = Line(args.reference, args.output)
+        line.plot()
 
 
 if __name__ == "__main__":

@@ -43,6 +43,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/13/eb/2552ecebc0b887f539111c2cd241f538b8ff5891b8903dfe672e997529be/pillow-11.2.1-cp313-cp313-manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/9c/39/0f88a830a1c8a3aba27fededc642da37613c57cbff143412e3536f89784f/psutil-6.1.1-cp36-abi3-manylinux_2_12_x86_64.manylinux2010_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/d5/e9/7fa576d5d355f69bc014401659dc09e3fdef5ba42dda636b452788e44a52/pycirclize-1.9.1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/79/54/8efdbd8f26b6ffb1a41934d60b6a0cb0cae49347598d77fadcc9fe05bcba/pygenomeviz-1.5.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/40/09/e4623cf5875efed7f33da52d6f4987361c68241b02211e2eae972561c1e0/pyhmmer-0.11.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/05/e7/df2285f3d08fee213f2d041540fa4fc9ca6c2d44cf36d3a035bf2a8d2bcc/pyparsing-3.2.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/66/7a/66088014a89e34dd4acf5f3a2783873d31c667852ddb905613b69943945a/pyrodigal-3.6.3.post1-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
@@ -82,6 +83,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/36/9c/447528ee3776e7ab8897fe33697a7ff3f0475bb490c5ac1456a03dc57956/pillow-11.2.1-cp313-cp313-macosx_10_13_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/61/99/ca79d302be46f7bdd8321089762dd4476ee725fce16fc2b2e1dbba8cac17/psutil-6.1.1-cp36-abi3-macosx_10_9_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/d5/e9/7fa576d5d355f69bc014401659dc09e3fdef5ba42dda636b452788e44a52/pycirclize-1.9.1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/79/54/8efdbd8f26b6ffb1a41934d60b6a0cb0cae49347598d77fadcc9fe05bcba/pygenomeviz-1.5.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5e/e7/030b65e8461b857089c5f77abd6594456e32f2216ed961dc0855a6c6bfb4/pyhmmer-0.11.0-cp313-cp313-macosx_10_13_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/05/e7/df2285f3d08fee213f2d041540fa4fc9ca6c2d44cf36d3a035bf2a8d2bcc/pyparsing-3.2.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/82/ac/dfbf9402aa430c019d3a7793d9746dfaa35e5162d8a8dbe053b447470bf5/pyrodigal-3.6.3.post1-cp313-cp313-macosx_10_13_x86_64.whl
@@ -121,6 +123,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/b5/09/29d5cd052f7566a63e5b506fac9c60526e9ecc553825551333e1e18a4858/pillow-11.2.1-cp313-cp313-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/0b/6b/73dbde0dd38f3782905d4587049b9be64d76671042fdcaf60e2430c6796d/psutil-6.1.1-cp36-abi3-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/d5/e9/7fa576d5d355f69bc014401659dc09e3fdef5ba42dda636b452788e44a52/pycirclize-1.9.1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/79/54/8efdbd8f26b6ffb1a41934d60b6a0cb0cae49347598d77fadcc9fe05bcba/pygenomeviz-1.5.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/cf/f0/7d47ba4a11175a6e421934e6f386903c46c92a3e764fabcd39e01c88dc0c/pyhmmer-0.11.0-cp313-cp313-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/05/e7/df2285f3d08fee213f2d041540fa4fc9ca6c2d44cf36d3a035bf2a8d2bcc/pyparsing-3.2.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e3/7f/8454c0389109f1606d5b1e50d01c179f7dbd3132a6b694de9ccb310907fd/pyrodigal-3.6.3.post1-cp313-cp313-macosx_11_0_arm64.whl
@@ -162,6 +165,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/6d/ec/1179083b8d6067a613e4d595359b5fdea65d0a3b7ad623fee906e1b3c4d2/pillow-11.2.1-cp313-cp313-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/7b/d7/7831438e6c3ebbfa6e01a927127a6cb42ad3ab844247f3c5b96bea25d73d/psutil-6.1.1-cp37-abi3-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/d5/e9/7fa576d5d355f69bc014401659dc09e3fdef5ba42dda636b452788e44a52/pycirclize-1.9.1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/79/54/8efdbd8f26b6ffb1a41934d60b6a0cb0cae49347598d77fadcc9fe05bcba/pygenomeviz-1.5.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d6/1a/2fcaee4468b62e8ad1f39b140b2e7cd03219f2eebd7f51f7a718c07c436d/pyhmmer-0.11.0.tar.gz
       - pypi: https://files.pythonhosted.org/packages/05/e7/df2285f3d08fee213f2d041540fa4fc9ca6c2d44cf36d3a035bf2a8d2bcc/pyparsing-3.2.3-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/21/a0/1acdb8e2e2ad64e10ada85ad505126bfa3098ffb5b0f41a5bdcd9ef33b7b/pyrodigal-3.6.3.post1-cp313-cp313-win_amd64.whl
@@ -1069,7 +1073,7 @@ packages:
 - pypi: .
   name: orfmatch
   version: 0.1.4
-  sha256: e3e8c416dfc9edc1b4e16accf229521dc22c0b4c1013540eb74946611bb336c5
+  sha256: b246b1eaf490b4e851255a1736024148cfc39f847886b080b9a827fe8d796d14
   requires_dist:
   - pyrodigal>=3.6.3.post1,<4
   - pyhmmer>=0.11.0,<0.12
@@ -1077,6 +1081,7 @@ packages:
   - tqdm>=4.67.1,<5
   - pycirclize>=1.9.1,<2
   - seaborn>=0.13.2,<0.14
+  - pygenomeviz>=1.5.0,<2
   requires_python: '>=3.9'
   editable: true
 - pypi: https://files.pythonhosted.org/packages/20/12/38679034af332785aac8774540895e234f4d07f7545804097de4b666afd8/packaging-25.0-py3-none-any.whl
@@ -1686,6 +1691,16 @@ packages:
   - matplotlib>=3.6.3
   - numpy>=1.21
   - pandas>=1.3.5
+  requires_python: '>=3.9'
+- pypi: https://files.pythonhosted.org/packages/79/54/8efdbd8f26b6ffb1a41934d60b6a0cb0cae49347598d77fadcc9fe05bcba/pygenomeviz-1.5.0-py3-none-any.whl
+  name: pygenomeviz
+  version: 1.5.0
+  sha256: d5403c3a3f5500dfa964435dab41ac70fee6eb7c9832427ccbcef516f57e866a
+  requires_dist:
+  - biopython>=1.80
+  - matplotlib>=3.6.3
+  - numpy>=1.21
+  - streamlit>=1.32.0 ; extra == 'gui'
   requires_python: '>=3.9'
 - pypi: https://files.pythonhosted.org/packages/40/09/e4623cf5875efed7f33da52d6f4987361c68241b02211e2eae972561c1e0/pyhmmer-0.11.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
   name: pyhmmer
