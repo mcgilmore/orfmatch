@@ -117,6 +117,10 @@ def main():
     annotated_gbff = args.output
     show_variants = args.variants
 
+    # Sanitise input
+    if not annotated_gbff.endswith(".gbff"):
+        annotated_gbff += ".gbff"
+
     # Load all contigs from the assembly FASTA
     contigs = list(SeqIO.parse(assembly_fasta, "fasta"))
 
@@ -258,8 +262,7 @@ def main():
                 if variants:
                     variant_records.extend(variants)
                 if matched:
-                    digital_refs.pop(matched, None)
-                    # Also remove the matched feature from unmatched list
+                    # Remove the matched feature from unmatched list
                     unmatched.pop(annotated.qualifiers["ID"][0], None)
                 pbar.update(1)
 
@@ -347,11 +350,11 @@ def main():
         log(f"[✓] Writing pairwise alignments of variants to alignments.txt")
     if args.circle:
         log("[✓] Plotting circular comparison and saving to circle.svg")
-        circle = Circle(args.reference, args.output)
+        circle = Circle(reference_gbff, annotated_gbff)
         circle.plot()
     if args.line:
-        log("[✓] Plotting linear comparison and saving to line.svg")
-        line = Line(args.reference, args.output)
+        log("[✓] Plotting linear comparison and saving to linear.svg")
+        line = Line(reference_gbff, annotated_gbff)
         line.plot()
 
 
