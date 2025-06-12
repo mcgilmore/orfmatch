@@ -1,12 +1,10 @@
-import pycirclize
-import pygenomeviz
-import seaborn as sns
-
-
 class Circle:
+    import pycirclize
+    import seaborn as sns
+
     def __init__(self, reference, assembly):
-        self.ref_gbk = pycirclize.parser.Genbank(reference)
-        self.asm_gbk = pycirclize.parser.Genbank(assembly)
+        self.ref_gbk = self.pycirclize.parser.Genbank(reference)
+        self.asm_gbk = self.pycirclize.parser.Genbank(assembly)
 
     def plot(self):
         # Rename contigs to avoid problems with identically named ones
@@ -15,7 +13,7 @@ class Circle:
         sectors.update({f"ASM_{k}": v for k, v in reversed(
             list(self.asm_gbk.get_seqid2size().items()))})
 
-        circos = pycirclize.Circos(
+        circos = self.pycirclize.Circos(
             sectors=sectors,
             start=-358,
             end=2,
@@ -79,7 +77,7 @@ class Circle:
         # Assign a color per reference contig using seaborn
         ref_contig_colors = {}
         ref_contigs = sorted(set(seqid for seqid, _ in ref_locus_map.values()))
-        palette = sns.color_palette("muted", n_colors=len(ref_contigs))
+        palette = self.sns.color_palette("muted", n_colors=len(ref_contigs))
 
         for idx, seqid in enumerate(ref_contigs):
             ref_contig_colors[seqid] = palette[idx]
@@ -117,12 +115,16 @@ class Circle:
 
 
 class Line:
+    import pygenomeviz
+    import seaborn as sns
+
     def __init__(self, reference, assembly):
-        self.ref_gbk = pygenomeviz.parser.Genbank(reference)
-        self.asm_gbk = pygenomeviz.parser.Genbank(assembly)
+        self.ref_gbk = self.pygenomeviz.parser.Genbank(reference)
+        self.asm_gbk = self.pygenomeviz.parser.Genbank(assembly)
 
     def plot(self):
-        gv = pygenomeviz.GenomeViz(track_align_type="center", feature_track_ratio=0.02)
+        gv = self.pygenomeviz.GenomeViz(
+            track_align_type="center", feature_track_ratio=0.02)
 
         # Add reference and assembly feature tracks
         ref_track = gv.add_feature_track(
@@ -155,7 +157,7 @@ class Line:
         ref_contig_colors = {}
         ref_contigs = sorted(
             set(seqid for seqid, _ in ref_feature_map.values()))
-        palette = sns.color_palette("muted", n_colors=len(ref_contigs))
+        palette = self.sns.color_palette("muted", n_colors=len(ref_contigs))
 
         for idx, seqid in enumerate(ref_contigs):
             ref_contig_colors[seqid] = palette[idx]
