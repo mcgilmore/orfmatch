@@ -10,6 +10,8 @@ from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
 from orfmatch.plots import Circle, Line
+import os
+from importlib.metadata import version
 
 
 def direct_match_protein(predicted):
@@ -82,6 +84,11 @@ exact_ref_lookup = {}
 
 
 def main():
+    def log(message):
+        print(f"[orfmatch] {message}")
+    
+    log(f"version {version("orfmatch")}")
+
     parser = argparse.ArgumentParser(
         description="Transfer feature annotations from a reference genome to a de novo assembled one.")
     parser.add_argument("-v", "--variants", action="store_true",
@@ -103,14 +110,10 @@ def main():
 
     args = parser.parse_args()
 
-    import os
     if not os.path.isfile(args.input):
         parser.error(f"Input FASTA file '{args.input}' not found.")
     if not os.path.isfile(args.reference):
         parser.error(f"Reference GBFF file '{args.reference}' not found.")
-
-    def log(message):
-        print(f"[orfmatch] {message}")
 
     assembly_fasta = args.input
     reference_gbff = args.reference
