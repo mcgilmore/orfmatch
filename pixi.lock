@@ -1118,15 +1118,15 @@ packages:
 - pypi: ./
   name: orfmatch
   version: 0.2.2
-  sha256: 823f0b5c93319417ac73b916d279038390c55c98708863ab55a404734d21e529
+  sha256: a0f2ded4baae7a61a20e6f0c369ebf25e347d72ccd2164791a4407c59d7a67b2
   requires_dist:
-  - pyrodigal
-  - pyhmmer
-  - biopython
-  - tqdm
-  - pycirclize
-  - seaborn
-  - pygenomeviz
+  - pyrodigal>=3.6.3.post1,<4
+  - pyhmmer>=0.11.1,<0.12
+  - biopython>=1.85,<2
+  - tqdm>=4.67.1,<5
+  - pycirclize>=1.9.1,<2
+  - seaborn>=0.13.2,<0.14
+  - pygenomeviz>=1.6.1,<2
   requires_python: '>=3.9'
   editable: true
 - pypi: https://files.pythonhosted.org/packages/20/12/38679034af332785aac8774540895e234f4d07f7545804097de4b666afd8/packaging-25.0-py3-none-any.whl

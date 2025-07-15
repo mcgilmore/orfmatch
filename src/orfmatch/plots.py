@@ -6,7 +6,7 @@ class Circle:
         self.ref_gbk = self.pycirclize.parser.Genbank(reference)
         self.asm_gbk = self.pycirclize.parser.Genbank(assembly)
 
-    def plot(self):
+    def plot(self, circle_name="circle"):
         # Rename contigs to avoid problems with identically named ones
         sectors = {}
         sectors.update(self.ref_gbk.get_seqid2size())
@@ -111,7 +111,7 @@ class Circle:
             adjust_rotation=True
         )
 
-        circos.savefig("circle.svg")
+        circos.savefig(f"{circle_name}.svg")
 
 
 class Line:
@@ -122,7 +122,7 @@ class Line:
         self.ref_gbk = self.pygenomeviz.parser.Genbank(reference)
         self.asm_gbk = self.pygenomeviz.parser.Genbank(assembly)
 
-    def plot(self):
+    def plot(self, line_name="linear"):
         gv = self.pygenomeviz.GenomeViz(
             track_align_type="center", feature_track_ratio=0.02)
 
@@ -180,4 +180,4 @@ class Line:
                 curve=True
             )
 
-        gv.savefig("linear.svg")
+        gv.savefig(f"{line_name}.svg")
