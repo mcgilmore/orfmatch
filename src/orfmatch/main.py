@@ -86,8 +86,8 @@ exact_ref_lookup = {}
 def main():
     def log(message):
         print(f"[orfmatch] {message}")
-    
-    log(f"version {version("orfmatch")}")
+
+    log(f"version {version('orfmatch')}")
 
     parser = argparse.ArgumentParser(
         description="Transfer feature annotations from a reference genome to a de novo assembled one.")
