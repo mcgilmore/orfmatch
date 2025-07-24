@@ -97,9 +97,9 @@ def main():
                         help="E-value threshold for accepting phmmer matches (default: 1e-25)")
     parser.add_argument("-t", "--threads", type=int, default=8,
                         help="Number of threads for parallel steps (default: 8)")
-    parser.add_argument("-c", "--circle", type=str,
+    parser.add_argument("-c", "--circle", action="store_true",
                         help="Output circular plot of reference against assembly anotations to svg")
-    parser.add_argument("-l", "--line", type=str,
+    parser.add_argument("-l", "--line", action="store_true",
                         help="Output linear plot of reference against assembly anotations to svg")
     parser.add_argument("-i", "--input", required=True,
                         help="Input FASTA assembly")
@@ -352,15 +352,15 @@ def main():
                 aln_out.write(str(alignment) + "\n")
         log(f"[✓] Writing pairwise alignments of variants to alignments.txt")
     if args.circle:
-        filename, ext = os.path.splitext(args.circle)
-        log(f"[✓] Plotting circular comparison and saving to {filename}.svg")
+        #filename, ext = os.path.splitext(args.circle)
+        log(f"[✓] Plotting circular comparison and saving to circle_plot.svg")
         circle = Circle(reference_gbff, annotated_gbff)
-        circle.plot(filename)
+        circle.plot("circle_plot")
     if args.line:
-        filename, ext = os.path.splitext(args.line)
-        log(f"[✓] Plotting linear comparison and saving to {filename}.svg")
+        #filename, ext = os.path.splitext(args.line)
+        log(f"[✓] Plotting linear comparison and saving to line_plot.svg")
         line = Line(reference_gbff, annotated_gbff)
-        line.plot(filename)
+        line.plot("line_plot")
 
 
 if __name__ == "__main__":
