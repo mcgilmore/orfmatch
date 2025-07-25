@@ -98,9 +98,9 @@ def main():
     parser.add_argument("-t", "--threads", type=int, default=8,
                         help="Number of threads for parallel steps (default: 8)")
     parser.add_argument("-c", "--circle", action="store_true",
-                        help="Output circular plot of reference against assembly anotations to svg")
+                        help="Output circular plot of reference against assembly annotations to svg")
     parser.add_argument("-l", "--line", action="store_true",
-                        help="Output linear plot of reference against assembly anotations to svg")
+                        help="Output linear plot of reference against assembly annotations to svg")
     parser.add_argument("-i", "--input", required=True,
                         help="Input FASTA assembly")
     parser.add_argument("-r", "--reference", required=True,
@@ -121,8 +121,9 @@ def main():
     show_variants = args.variants
 
     # Sanitise input
-    if not annotated_gbff.endswith(".gbff"):
-        annotated_gbff += ".gbff"
+    output_base, ext = os.path.splitext(annotated_gbff)
+    if ext != ".gbff":
+        annotated_gbff = output_base + ".gbff"
 
     # Load all contigs from the assembly FASTA
     contigs = list(SeqIO.parse(assembly_fasta, "fasta"))
@@ -352,15 +353,13 @@ def main():
                 aln_out.write(str(alignment) + "\n")
         log(f"[✓] Writing pairwise alignments of variants to alignments.txt")
     if args.circle:
-        #filename, ext = os.path.splitext(args.circle)
-        log(f"[✓] Plotting circular comparison and saving to circle_plot.svg")
+        log(f"[✓] Plotting circular comparison and saving to {output_base}_circle_plot.svg")
         circle = Circle(reference_gbff, annotated_gbff)
-        circle.plot("circle_plot")
+        circle.plot(f"{output_base}_circle_plot")
     if args.line:
-        #filename, ext = os.path.splitext(args.line)
-        log(f"[✓] Plotting linear comparison and saving to line_plot.svg")
+        log(f"[✓] Plotting linear comparison and saving to {output_base}_line_plot.svg")
         line = Line(reference_gbff, annotated_gbff)
-        line.plot("line_plot")
+        line.plot(f"{output_base}_line_plot")
 
 
 if __name__ == "__main__":
