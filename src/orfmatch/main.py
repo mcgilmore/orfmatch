@@ -12,15 +12,10 @@ from importlib.metadata import version
 
 
 def main():
-<<<<<<< HEAD
-    logger = Logger()
-    logger.log(f"version {version("orfmatch")}")
-=======
     def log(message):
         print(f"[orfmatch] {message}")
 
     log(f"version {version('orfmatch')}")
->>>>>>> main
 
     parser = argparse.ArgumentParser(
         description="Transfer feature annotations from a reference genome to a de novo assembled one.")
@@ -121,25 +116,11 @@ def main():
         log("[✓] Novel regions added to feature list")
 
     if args.circle:
-<<<<<<< HEAD
-        from orfmatch.plots import Circle
-        filename, ext = os.path.splitext(args.circle)
-        logger.log(
-            f"[✓] Plotting circular comparison and saving to {filename}.svg")
-=======
         log(f"[✓] Plotting circular comparison and saving to {output_base}_circle_plot.svg")
->>>>>>> main
         circle = Circle(reference_gbff, annotated_gbff)
         circle.plot(f"{output_base}_circle_plot")
     if args.line:
-<<<<<<< HEAD
-        from orfmatch.plots import Line
-        filename, ext = os.path.splitext(args.line)
-        logger.log(
-            f"[✓] Plotting linear comparison and saving to {filename}.svg")
-=======
         log(f"[✓] Plotting linear comparison and saving to {output_base}_line_plot.svg")
->>>>>>> main
         line = Line(reference_gbff, annotated_gbff)
         line.plot(f"{output_base}_line_plot")
 
