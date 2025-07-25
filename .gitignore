@@ -5,10 +5,6 @@
 
 __pycache__
 *.DS_Store
-tests/test.gbff
-tests/plot.png
-tests/variants.fasta
-tests/variant_alignments.txt
+tests/
 dist/
-tests/out.gbff
-tests/test.sh
+

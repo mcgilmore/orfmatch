@@ -12,8 +12,15 @@ from importlib.metadata import version
 
 
 def main():
+<<<<<<< HEAD
     logger = Logger()
     logger.log(f"version {version("orfmatch")}")
+=======
+    def log(message):
+        print(f"[orfmatch] {message}")
+
+    log(f"version {version('orfmatch')}")
+>>>>>>> main
 
     parser = argparse.ArgumentParser(
         description="Transfer feature annotations from a reference genome to a de novo assembled one.")
@@ -23,10 +30,10 @@ def main():
                         help="E-value threshold for accepting phmmer matches (default: 1e-25)")
     parser.add_argument("-t", "--threads", type=int, default=8,
                         help="Number of threads for parallel steps (default: 8)")
-    parser.add_argument("-c", "--circle", type=str,
-                        help="Output circular plot of reference against assembly anotations to svg")
-    parser.add_argument("-l", "--line", type=str,
-                        help="Output linear plot of reference against assembly anotations to svg")
+    parser.add_argument("-c", "--circle", action="store_true",
+                        help="Output circular plot of reference against assembly annotations to svg")
+    parser.add_argument("-l", "--line", action="store_true",
+                        help="Output linear plot of reference against assembly annotations to svg")
     parser.add_argument("-i", "--input", required=True,
                         help="Input FASTA assembly")
     parser.add_argument("-r", "--reference", required=True,
@@ -49,8 +56,9 @@ def main():
     show_variants = args.variants
 
     # Sanitise input
-    if not annotated_gbff.endswith(".gbff"):
-        annotated_gbff += ".gbff"
+    output_base, ext = os.path.splitext(annotated_gbff)
+    if ext != ".gbff":
+        annotated_gbff = output_base + ".gbff"
 
     # Load all contigs from the assembly FASTA
     contigs = list(SeqIO.parse(assembly_fasta, "fasta"))
@@ -113,19 +121,27 @@ def main():
         log("[✓] Novel regions added to feature list")
 
     if args.circle:
+<<<<<<< HEAD
         from orfmatch.plots import Circle
         filename, ext = os.path.splitext(args.circle)
         logger.log(
             f"[✓] Plotting circular comparison and saving to {filename}.svg")
+=======
+        log(f"[✓] Plotting circular comparison and saving to {output_base}_circle_plot.svg")
+>>>>>>> main
         circle = Circle(reference_gbff, annotated_gbff)
-        circle.plot(filename)
+        circle.plot(f"{output_base}_circle_plot")
     if args.line:
+<<<<<<< HEAD
         from orfmatch.plots import Line
         filename, ext = os.path.splitext(args.line)
         logger.log(
             f"[✓] Plotting linear comparison and saving to {filename}.svg")
+=======
+        log(f"[✓] Plotting linear comparison and saving to {output_base}_line_plot.svg")
+>>>>>>> main
         line = Line(reference_gbff, annotated_gbff)
-        line.plot(filename)
+        line.plot(f"{output_base}_line_plot")
 
 
 if __name__ == "__main__":
