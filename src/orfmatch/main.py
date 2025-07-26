@@ -26,17 +26,17 @@ def main():
     parser.add_argument("-t", "--threads", type=int, default=8,
                         help="Number of threads for parallel steps (default: 8)")
     parser.add_argument("-c", "--circle", action="store_true",
-                        help="Output circular plot of reference against assembly annotations to svg")
+                        help="Output circular plot of reference against assembly annotations to SVG")
     parser.add_argument("-l", "--line", action="store_true",
-                        help="Output linear plot of reference against assembly annotations to svg")
+                        help="Output linear plot of reference against assembly annotations to SVG")
     parser.add_argument("-i", "--input", required=True,
                         help="Input FASTA assembly")
     parser.add_argument("-r", "--reference", required=True,
                         help="Reference GBFF file with annotations")
-    parser.add_argument("-o", "--output", required=True,
+    parser.add_argument("-o", "--output", required=True, 
                         help="Output GFF file with transferred annotations")
-    parser.add_argument("--detect-novel", action="store_true",
-                        help="Detect query regions not present in the reference via genome alignment")
+    parser.add_argument("-u", "--unique", action="store_true", # TODO: Output unique features
+                        help="List features which are present only in the reference or query")
 
     args = parser.parse_args()
 
@@ -50,7 +50,7 @@ def main():
     annotated_gbff = args.output
     show_variants = args.variants
 
-    # Sanitise input
+    # Sanitise input # TODO: Protein fasta mode
     output_base, ext = os.path.splitext(annotated_gbff)
     if ext != ".gbff":
         annotated_gbff = output_base + ".gbff"
