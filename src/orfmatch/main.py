@@ -5,16 +5,13 @@ from Bio.SeqRecord import SeqRecord
 from Bio.SeqFeature import SeqFeature, FeatureLocation
 import pyrodigal
 from collections import defaultdict
-from orfmatch.utils import Logger
+from orfmatch.utils import log
 from orfmatch.annotation import Annotator
 import os
 from importlib.metadata import version
 
 
 def main():
-    def log(message):
-        print(f"[orfmatch] {message}")
-
     log(f"version {version('orfmatch')}")
 
     parser = argparse.ArgumentParser(
@@ -69,7 +66,7 @@ def main():
     reference_rnas = []
     rna_feature_map = {}
 
-    logger.log("Parsing reference sequence...")
+    log("Parsing reference sequence...")
     rna_id_counter = defaultdict(int)
     for record in SeqIO.parse(reference_gbff, "genbank"):
         for feature in record.features:
@@ -93,7 +90,7 @@ def main():
                     rna_feature_map[locus] = []
                 rna_feature_map[locus].append(feature)
     exact_ref_lookup.update({str(p.seq): p.id for p in reference_proteins})
-    logger.log(f"Found {len(reference_proteins)} ORFs and {len(reference_rnas)} RNAs.")
+    log(f"Found {len(reference_proteins)} ORFs and {len(reference_rnas)} RNAs.")
 
     annotator = Annotator()
     annotater.annotate()
@@ -101,7 +98,7 @@ def main():
     if args.detect_novel:
         from orfmatch.alignment import Aligner
         
-        logger.log("Finding regions not present in reference...")
+        log("Finding regions not present in reference...")
         novel = Aligner().find_novel_regions(contigs, reference_gbff, min_length=100)
 
         for record in prodigal_records:

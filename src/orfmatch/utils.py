@@ -1,3 +1,2 @@
-class Logger:
-    def log(message):
+def log(message):
         print(f"[orfmatch] {message}")

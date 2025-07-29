@@ -3,8 +3,7 @@ class Annotator:
     from tqdm import tqdm
     from concurrent.futures import ThreadPoolExecutor, as_completed
     from Bio.Align import PairwiseAligner
-
-    logger = orfmatch.utils.Logger()
+    from orfmatch.utils import log
 
     def __init(self, assembly_contigs, reference_proteins, reference_RNAs):
         
@@ -46,7 +45,7 @@ class Annotator:
         gene_finder = pyrodigal.GeneFinder()
         gene_finder.train("".join(training_seqs))
 
-        logger.log("Finding ORFs in assembly contigs...")
+        log("Finding ORFs in assembly contigs...")
         for seq_record in contigs:
             genes = gene_finder.find_genes(str(seq_record.seq))
             record = next(
@@ -73,7 +72,7 @@ class Annotator:
                     location=location, type="CDS", qualifiers=qualifiers)
                 record.features.append(feature)
                 predicted_features.append((feature, gene.translate()))
-        logger.log(f"Found {len(predicted_features)}.")
+        log(f"Found {len(predicted_features)}.")
     
     def direct_match_protein(predicted):
         feature, seq = predicted
