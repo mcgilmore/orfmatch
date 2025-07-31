@@ -155,7 +155,6 @@ def main():
     )
 
     prodigal_records = annotator.annotate()
-    log(f"[✓] Wrote annotated GenBank to {annotated_gbff}")
 
     #if args.detect_novel:
     #    from orfmatch.alignment import Aligner

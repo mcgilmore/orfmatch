@@ -21,21 +21,7 @@ import os
 
 class Annotator:
     """
-    A callable annotation pipeline you can import and use from a separate
-    `main.py`. Construct it with your inputs, then call `.annotate()`.
-
-    Example usage from main.py:
-        from orfmatch.annotation import Annotator
-        annot = Annotator(
-            contigs, reference_proteins, reference_rnas,
-            reference_gbff="refs.gbff",
-            protein_feature_map=protein_feature_map,
-            rna_feature_map=rna_feature_map,
-            annotated_gbff="annotated.gbff",
-            variants_fasta="variants.faa",
-            threads=8, e_value=1e-5, show_variants=True,
-        )
-        records = annot.annotate()
+    Callable annotation pipeline.
     """
 
     def __init__(
@@ -295,9 +281,11 @@ class Annotator:
 
         # 6) Variants (optional)
         if self.show_variants and variant_records:
-            SeqIO.write(variant_records, self.variants_fasta, "fasta")
-            log(f"  Variants found: {len(variant_records) // 2}")
-            log(f"[✓] Variants saved to: {self.variants_fasta}")
+            # Save only the query (prodigal) sequences to FASTA
+            query_variant_records = [rec for rec in variant_records if rec.id.startswith("prodigal_")]
+            SeqIO.write(query_variant_records, self.variants_fasta, "fasta")
+            log(f" Variant protein sequences found: {len(query_variant_records)}")
+            log(f"[✓] Variants saved to {self.variants_fasta}")
             with open("variant_alignments.txt", "w") as aln_out:
                 aligner = PairwiseAligner()
                 aligner.mode = "global"
@@ -309,7 +297,7 @@ class Annotator:
                     alignment = aligner.align(prodigal_seq, reference_seq)[0]
                     aln_out.write(f"Alignment of {prodigal_record.id} and {reference_record.id}: \n")
                     aln_out.write(str(alignment) + "\n")
-            log(f"[✓] Writing pairwise alignments of variants to alignments.txt")
+            log(f"[✓] Writing pairwise alignments of variants to variant_alignments.txt")
 
         # 7) Summary
         total_identified_rnas = sum(
@@ -320,6 +308,6 @@ class Annotator:
         log(f"  Total predicted proteins: {len(predicted_features)}")
         log(f"  Total reference RNAs: {len(self.reference_rnas)}")
         log(f"  Total identified RNAs: {total_identified_rnas}\n")
-        log(f"[✓] Annotated GBFF written to: {self.annotated_gbff}\n")
+        log(f"[✓] Annotated GBFF written to {self.annotated_gbff}\n")
 
         return prodigal_records
