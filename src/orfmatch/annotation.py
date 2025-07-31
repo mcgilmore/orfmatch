@@ -1,131 +1,202 @@
+from __future__ import annotations
+
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Dict, Iterable, List, Optional, Tuple
+
+from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqFeature import SeqFeature, FeatureLocation
+from Bio.SeqRecord import SeqRecord
+from Bio.Align import PairwiseAligner
+
+import pyrodigal
+from pyhmmer import easel, hmmer
+from tqdm import tqdm
+
+from orfmatch.utils import log
+
+import os
+
+
 class Annotator:
-    from pyhmmer import easel, hmmer
-    from tqdm import tqdm
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-    from Bio.Align import PairwiseAligner
-    from orfmatch.utils import log
+    """
+    A callable annotation pipeline you can import and use from a separate
+    `main.py`. Construct it with your inputs, then call `.annotate()`.
 
-    def __init(self, assembly_contigs, reference_proteins, reference_RNAs):
-        
+    Example usage from main.py:
+        from orfmatch.annotation import Annotator
+        annot = Annotator(
+            contigs, reference_proteins, reference_rnas,
+            reference_gbff="refs.gbff",
+            protein_feature_map=protein_feature_map,
+            rna_feature_map=rna_feature_map,
+            annotated_gbff="annotated.gbff",
+            variants_fasta="variants.faa",
+            threads=8, e_value=1e-5, show_variants=True,
+        )
+        records = annot.annotate()
+    """
 
-    def find_ORFs():
-        # Step 2: Convert reference proteins to digital sequences for phmmer
-        alphabet = easel.Alphabet.amino()
-        digital_refs = {
-            rec.id: easel.TextSequence(
-                name=rec.id.encode(), sequence=str(rec.seq)).digitize(alphabet)
-            for rec in reference_proteins
+    def __init__(
+        self,
+        contigs: List[SeqRecord],
+        reference_proteins: Iterable[SeqRecord],
+        reference_rnas: Iterable[SeqRecord],
+        reference_gbff: str,
+        *,
+        protein_feature_map: Dict[str, SeqFeature],
+        rna_feature_map: Dict[str, List[SeqFeature]],
+        annotated_gbff: str = "annotated.gbff",
+        variants_fasta: str = "variants.faa",
+        threads: int = 4,
+        e_value: float = 1e-5,
+        show_variants: bool = False,
+    ) -> None:
+        # Inputs
+        self.contigs = contigs
+        self.reference_proteins = list(reference_proteins)
+        self.reference_rnas = list(reference_rnas)
+        self.reference_gbff = reference_gbff
+        self.protein_feature_map = protein_feature_map
+        self.rna_feature_map = rna_feature_map
+
+        # Settings
+        self.annotated_gbff = annotated_gbff
+        self.variants_fasta = variants_fasta
+        self.threads = threads
+        self.e_value = e_value
+        self.show_variants = show_variants
+
+        # Alphabets
+        self.prot_alphabet = easel.Alphabet.amino()
+        self.dna_alphabet = easel.Alphabet.dna()
+
+        # Precompute digital references for HMMER and an exact-match lookup
+        self.digital_refs: Dict[str, easel.DigitalSequence] = {
+            rec.id: easel.TextSequence(name=rec.id.encode(), sequence=str(rec.seq)).digitize(self.prot_alphabet)
+            for rec in self.reference_proteins
         }
+        self.exact_ref_lookup: Dict[str, str] = {
+            str(rec.seq).rstrip("*").strip(): rec.id for rec in self.reference_proteins
+        }
+        self.digital_rnas: Dict[str, List[easel.DigitalSequence]] = defaultdict(list)
+        for rec in self.reference_rnas:
+            digital = easel.TextSequence(name=rec.id.encode(), sequence=str(rec.seq)).digitize(self.dna_alphabet)
+            self.digital_rnas[rec.id].append(digital)
 
-        # Convert reference RNAs to digital sequences for nhmmer
-        dna_alphabet = easel.Alphabet.dna()
-        digital_rnas = defaultdict(list)
-        for rec in reference_rnas:
-            digital = easel.TextSequence(name=rec.id.encode(
-            ), sequence=str(rec.seq)).digitize(dna_alphabet)
-            digital_rnas[rec.id].append(digital)
-
-        # Generate GFF-compatible records with feature lists
-        prodigal_records = []
-        for seq in contigs:
-            record = SeqRecord(seq.seq, id=seq.id, name=seq.name,
-                            description=seq.description)
+    # -------------------- ORF finding --------------------
+    def _find_orfs(self) -> Tuple[List[SeqRecord], List[Tuple[SeqFeature, str]]]:
+        """Predict ORFs on the contigs using pyrodigal.
+        Returns (prodigal_records, predicted_features) where predicted_features is
+        a list of (CDS SeqFeature, translation str).
+        """
+        # Build GFF/GBK-compatible SeqRecords for all contigs
+        prodigal_records: List[SeqRecord] = []
+        for seq in self.contigs:
+            record = SeqRecord(seq.seq, id=seq.id, name=getattr(seq, "name", seq.id), description=getattr(seq, "description", ""))
             record.annotations["molecule_type"] = "DNA"
+            record.features = []  # type: ignore[attr-defined]
             prodigal_records.append(record)
 
-        for record in prodigal_records:
-            record.features = []
-
-        # Extract nucleotide sequences from reference GBFF for training
-        training_seqs = []
-        for record in SeqIO.parse(reference_gbff, "genbank"):
-            training_seqs.append(str(record.seq))
-
-        # Train on concatenated genome if multiple records
+        # Train GeneFinder (prefer the user-provided assembly; fallback to reference GBFF if available)
+        training_seqs: List[str] = []
+        # Prefer training on the assembly contigs (best fit for sample-specific coding statistics)
+        if self.contigs:
+            try:
+                training_seqs = [str(rec.seq) for rec in self.contigs]
+            except Exception:
+                training_seqs = []
+        # Fallback to reference GBFF only if we couldn't extract assembly sequences
+        if not training_seqs and self.reference_gbff and isinstance(self.reference_gbff, str) and os.path.isfile(self.reference_gbff):
+            try:
+                training_seqs = [str(rec.seq) for rec in SeqIO.parse(self.reference_gbff, "genbank")]
+            except Exception:
+                training_seqs = []
         gene_finder = pyrodigal.GeneFinder()
-        gene_finder.train("".join(training_seqs))
+        if training_seqs:
+            gene_finder.train("".join(training_seqs))
 
         log("Finding ORFs in assembly contigs...")
-        for seq_record in contigs:
+        predicted_features: List[Tuple[SeqFeature, str]] = []
+        for seq_record in self.contigs:
             genes = gene_finder.find_genes(str(seq_record.seq))
-            record = next(
-                (r for r in prodigal_records if r.id == seq_record.id), None)
-            if not record:
-                print(
-                    f"Warning: No matching record found for contig {seq_record.id}")
+            # locate corresponding prodigal record
+            record = next((r for r in prodigal_records if r.id == seq_record.id), None)
+            if record is None:
+                log(f"Warning: No matching record found for contig {seq_record.id}")
                 continue
 
             for gene in genes:
+                # Adjust coordinates for forward strand to be 0-based half-open
                 if gene.strand == 1:
-                    # Forward strand CDSs need to be adjusted
-                    location = FeatureLocation(
-                        gene.begin - 1, gene.end, strand=gene.strand)
+                    location = FeatureLocation(gene.begin - 1, gene.end, strand=gene.strand)
                 else:
-                    location = FeatureLocation(
-                        gene.begin, gene.end, strand=gene.strand)
+                    location = FeatureLocation(gene.begin, gene.end, strand=gene.strand)
 
+                translation = gene.translate()
                 qualifiers = {
-                    "translation": [gene.translate()],
-                    "ID": [f"{seq_record.id}_cds_{gene.begin}_{gene.end}"]
+                    "translation": [translation],
+                    "ID": [f"{seq_record.id}_cds_{gene.begin}_{gene.end}"],
                 }
-                feature = SeqFeature(
-                    location=location, type="CDS", qualifiers=qualifiers)
+                feature = SeqFeature(location=location, type="CDS", qualifiers=qualifiers)
                 record.features.append(feature)
-                predicted_features.append((feature, gene.translate()))
-        log(f"Found {len(predicted_features)}.")
-    
-    def direct_match_protein(predicted):
-        feature, seq = predicted
-        for ref_seq, ref_id in exact_ref_lookup.items():
-            if seq.replace("*", "").strip() == ref_seq.replace("*", "").strip():
-                ref_feature = protein_feature_map.get(ref_id)
-                if ref_feature:
-                    for key in ["locus_tag", "gene", "product", "note"]:
-                        if key in ref_feature.qualifiers:
-                            feature.qualifiers[key] = ref_feature.qualifiers[key]
-                    return ("annotated", feature)
+                predicted_features.append((feature, translation))
+
+        log(f"Found {len(predicted_features)} predicted CDS features.")
+        return prodigal_records, predicted_features
+
+    def _direct_match_protein(self, feature: SeqFeature, seq: str) -> Tuple[str, object]:
+        """Return (status, annotated_feature or (feature, seq))."""
+        norm = seq.replace("*", "").strip()
+        if norm in self.exact_ref_lookup:
+            ref_id = self.exact_ref_lookup[norm]
+            ref_feature = self.protein_feature_map.get(ref_id)
+            if ref_feature:
+                for key in ["locus_tag", "gene", "product", "note"]:
+                    if key in ref_feature.qualifiers:
+                        feature.qualifiers[key] = ref_feature.qualifiers[key]
+                return ("annotated", feature)
         return ("unmatched", (feature, seq))
 
-    def hmm_search_protein(pred_feature, pred_seq, refs, feature_map, alphabet, evalue_threshold):
+    def _hmm_search_protein(
+        self, pred_feature: SeqFeature, pred_seq: str
+    ) -> Tuple[Optional[SeqFeature], List[SeqRecord], Optional[str]]:
         query = easel.TextSequence(name=b"query", sequence=pred_seq)
-        digital_query = query.digitize(alphabet)
-        results = hmmer.phmmer(digital_query, list(refs.values()))
+        digital_query = query.digitize(self.prot_alphabet)
+        results = hmmer.phmmer(digital_query, list(self.digital_refs.values()))
 
-        annotated = None
-        variants = []
-        matched = None
+        annotated: Optional[SeqFeature] = None
+        variants: List[SeqRecord] = []
+        matched: Optional[str] = None
+
         for hit_list in results:
             if len(hit_list) > 0:
                 top_hit = hit_list[0]
                 domain = top_hit.best_domain
-                if domain.i_evalue > evalue_threshold:
-                    return (None, None, None)
+                if domain.i_evalue > self.e_value:
+                    return (None, [], None)
                 ref_locus = top_hit.name.decode()
-                ref_feature = feature_map.get(ref_locus)
+                ref_feature = self.protein_feature_map.get(ref_locus)
                 if ref_feature:
                     for key in ["locus_tag", "gene", "product", "note"]:
                         if key in ref_feature.qualifiers:
                             pred_feature.qualifiers[key] = ref_feature.qualifiers[key]
 
-                    ref_prot = ref_feature.qualifiers["translation"][0]
-                    # Check for exact match, and if not, add to variants
-                    if str(pred_seq).rstrip("*").strip() != ref_prot.rstrip("*").strip():
+                    ref_prot = ref_feature.qualifiers.get("translation", [""])[0]
+                    if str(pred_seq).rstrip("*").strip() != str(ref_prot).rstrip("*").strip():
                         variants = [
-                            SeqRecord(Seq(pred_seq.rstrip("*")),
-                                      id=f"prodigal_{ref_locus}", description=""),
-                            SeqRecord(Seq(ref_prot.rstrip("*")),
-                                      id=f"reference_{ref_locus}", description="")
+                            SeqRecord(Seq(str(pred_seq).rstrip("*")), id=f"prodigal_{ref_locus}", description=""),
+                            SeqRecord(Seq(str(ref_prot).rstrip("*")), id=f"reference_{ref_locus}", description=""),
                         ]
                 annotated = pred_feature
                 matched = ref_locus
                 break
         return (annotated, variants, matched)
 
-    def hmm_search_rna(rna_id_query, contigs, dna_alphabet):
-        rna_id, query = rna_id_query
-        results = hmmer.nhmmer(query, [easel.TextSequence(name=rec.id.encode(
-        ), sequence=str(rec.seq)).digitize(dna_alphabet) for rec in contigs])
-        hits = []
+    def _hmm_search_rna(self, rna_id: str, digital_query: easel.DigitalSequence, contigs: List[SeqRecord]) -> List[Tuple[str, str, int, int, int]]:
+        results = hmmer.nhmmer(digital_query, [easel.TextSequence(name=rec.id.encode(), sequence=str(rec.seq)).digitize(self.dna_alphabet) for rec in contigs])
+        hits: List[Tuple[str, str, int, int, int]] = []
         for hit_list in results:
             if len(hit_list) > 0:
                 top_hit = hit_list[0]
@@ -137,34 +208,33 @@ class Annotator:
                 hits.append((rna_id, contig_name, start, end, strand))
         return hits
 
-    exact_ref_lookup = {}
+    def annotate(self) -> List[SeqRecord]:
+        """Run the full pipeline and write the annotated GBFF to disk.
+        Returns the list of annotated SeqRecords.
+        """
+        prodigal_records, predicted_features = self._find_orfs()
 
-    def annotate(predicted_features):
-         # Directly match genes with their annotation for identical sequences
-        annotated_features = []
-        unmatched = {}
-        variant_records = []
+        # 1) Direct matches
+        annotated_features: List[SeqFeature] = []
+        unmatched: Dict[str, Tuple[SeqFeature, str]] = {}
+        variant_records: List[SeqRecord] = []
 
-        with ThreadPoolExecutor(max_workers=args.threads) as executor:
-            futures = [executor.submit(direct_match_protein, p)
-                    for p in predicted_features]
-
+        with ThreadPoolExecutor(max_workers=self.threads) as executor:
+            futures = [executor.submit(self._direct_match_protein, ftr, seq) for (ftr, seq) in predicted_features]
             with tqdm(total=len(futures), desc="[orfmatch] Checking for direct sequence matches", unit="cds") as pbar:
                 for future in as_completed(futures):
                     status, result = future.result()
                     if status == "annotated":
-                        annotated_features.append(result)
+                        annotated_features.append(result)  # type: ignore[arg-type]
                     else:
-                        feature, seq = result
+                        feature, seq = result  # type: ignore[assignment]
                         unmatched[feature.qualifiers["ID"][0]] = (feature, seq)
                     pbar.update(1)
         log(f"Found {len(annotated_features)} direct sequence matches")
 
-        # Search with phmmer (parallelized)
-        with ThreadPoolExecutor(max_workers=args.threads) as executor:
-            futures = [executor.submit(hmm_search_protein, ftr, s, digital_refs, protein_feature_map, alphabet, args.e_value)
-                    for ftr, (ftr, s) in unmatched.items()]
-
+        # 2) HMMER for proteins
+        with ThreadPoolExecutor(max_workers=self.threads) as executor:
+            futures = [executor.submit(self._hmm_search_protein, ftr, seq) for (ftr, seq) in unmatched.values()]
             with tqdm(total=len(futures), desc="[orfmatch] Annotating unmatched CDSs using pyhmmer", unit="cds") as pbar:
                 for future in as_completed(futures):
                     annotated, variants, matched = future.result()
@@ -172,89 +242,84 @@ class Annotator:
                         annotated_features.append(annotated)
                     if variants:
                         variant_records.extend(variants)
-                    if matched:
-                        # Remove the matched feature from unmatched list
+                    if matched and annotated:
+                        # Remove by the annotated feature ID
                         unmatched.pop(annotated.qualifiers["ID"][0], None)
                     pbar.update(1)
 
-        # Label unmatched proteins as hypothetical and add them
+        # 3) Label remaining unmatched as hypothetical
         log("Labelling remaining unmatched CDSs as 'hypothetical protein'...")
-        for feature_id, (feature, seq) in unmatched.items():
+        for feature_id, (feature, _seq) in unmatched.items():
             if feature.type == "CDS":
                 if "product" not in feature.qualifiers:
                     feature.qualifiers["product"] = ["hypothetical protein"]
                 feature.qualifiers["note"] = ["No match found during annotation"]
                 annotated_features.append(feature)
 
-        # Search with nhmmer (for RNAs)
-        with ThreadPoolExecutor(max_workers=args.threads) as executor:
-            futures = [executor.submit(
-                hmm_search_rna, (rna_id, digitals[0]), contigs, dna_alphabet)
-                for rna_id, digitals in digital_rnas.items()]
-
+        # 4) HMMER for RNAs
+        with ThreadPoolExecutor(max_workers=self.threads) as executor:
+            futures = [
+                executor.submit(self._hmm_search_rna, rna_id, digitals[0], self.contigs)
+                for rna_id, digitals in self.digital_rnas.items()
+                if digitals
+            ]
             with tqdm(total=len(futures), desc="[orfmatch] Annotating RNAs using pyhmmer", unit="rna") as pbar:
                 for future in as_completed(futures):
                     hits = future.result()
                     if hits:
-                        # Take only the best hit
                         rna_id, contig_name, start, end, strand = hits[0]
                         start0 = min(start, end) - 1
                         end0 = max(start, end)
                         location = FeatureLocation(start0, end0, strand=strand)
-                        rna_feature = rna_feature_map[rna_id][0]
-                        feature_type = rna_feature.type
-                        qualifiers = rna_feature.qualifiers.copy()
-                        feature = SeqFeature(
-                            location=location, type=feature_type, qualifiers=qualifiers)
-
+                        rna_feature_tpl = self.rna_feature_map[rna_id][0]
+                        qualifiers = dict(rna_feature_tpl.qualifiers)
+                        feature_type = rna_feature_tpl.type
+                        feature = SeqFeature(location=location, type=feature_type, qualifiers=qualifiers)
                         for record in prodigal_records:
                             if record.id == contig_name:
                                 record.features.append(feature)
                     pbar.update(1)
 
-        # Output annotated GBFF (all contigs with their annotated features)
+        # 5) Merge features and write output
         for record in prodigal_records:
-            original_rna_features = [
-                f for f in record.features if f.type in {"tRNA", "rRNA", "ncRNA"}]
-            # Add new annotated CDS features
-            matched_cds_features = [f for f in annotated_features if hasattr(f, "location") and hasattr(
-                record, "id") and f.location is not None and record.id in f.qualifiers.get("ID", [""])[0]]
-
-            # Merge and sort
+            original_rna_features = [f for f in record.features if f.type in {"tRNA", "rRNA", "ncRNA"}]
+            matched_cds_features = [
+                f for f in annotated_features
+                if hasattr(f, "location") and f.location is not None and record.id in f.qualifiers.get("ID", [""])[0]
+            ]
             record.features = original_rna_features + matched_cds_features
-            record.features.sort(key=lambda f: min(
-                int(f.location.start), int(f.location.end)))
-        with open(annotated_gbff, "w") as out_handle:
+            record.features.sort(key=lambda f: min(int(f.location.start), int(f.location.end)))
+
+        with open(self.annotated_gbff, "w") as out_handle:
             SeqIO.write(prodigal_records, out_handle, "genbank")
 
-        # Print summary
-        log("[Summary]")
-        log(f"  Total reference proteins: {len(reference_proteins)}")
-        log(f"  Total predicted proteins: {len(predicted_features)}")
-        log(
-            f"  Matched annotations: {len(annotated_features) - len(unmatched)}\n")
-        log(f"  Total reference RNAs: {len(reference_rnas)}")
-        total_identified_rnas = sum(
-            1 for record in prodigal_records for feature in record.features if feature.type in {"tRNA", "rRNA", "ncRNA"}
-        )
-        log(f"  Total identified RNAs: {total_identified_rnas}\n")
-        log(f"[✓] Annotated GBFF written to: {annotated_gbff}\n")
-        if show_variants and variant_records:
-            SeqIO.write(variant_records, variants_fasta, "fasta")
+        # 6) Variants (optional)
+        if self.show_variants and variant_records:
+            SeqIO.write(variant_records, self.variants_fasta, "fasta")
             log(f"  Variants found: {len(variant_records) // 2}")
-            log(f"[✓] Variants saved to: {variants_fasta}")
+            log(f"[✓] Variants saved to: {self.variants_fasta}")
             with open("variant_alignments.txt", "w") as aln_out:
                 aligner = PairwiseAligner()
                 aligner.mode = "global"
                 for i in tqdm(range(0, len(variant_records), 2), desc="Aligning variants", unit="aln"):
                     prodigal_record = variant_records[i]
-                    reference_record = variant_records[i+1]
-
+                    reference_record = variant_records[i + 1]
                     prodigal_seq = str(prodigal_record.seq).rstrip("*")
                     reference_seq = str(reference_record.seq).rstrip("*")
-
                     alignment = aligner.align(prodigal_seq, reference_seq)[0]
-                    aln_out.write(
-                        f"Alignment of {prodigal_record.id} and {reference_record.id}: \n")
+                    aln_out.write(f"Alignment of {prodigal_record.id} and {reference_record.id}: \n")
                     aln_out.write(str(alignment) + "\n")
             log(f"[✓] Writing pairwise alignments of variants to alignments.txt")
+
+        # 7) Summary
+        total_identified_rnas = sum(
+            1 for record in prodigal_records for feature in record.features if feature.type in {"tRNA", "rRNA", "ncRNA"}
+        )
+        log("[Summary]")
+        log(f"  Total reference proteins: {len(self.reference_proteins)}")
+        log(f"  Total predicted proteins: {len(predicted_features)}")
+        log(f"  Total reference RNAs: {len(self.reference_rnas)}")
+        log(f"  Total identified RNAs: {total_identified_rnas}\n")
+        log(f"[✓] Annotated GBFF written to: {self.annotated_gbff}\n")
+
+        return prodigal_records
