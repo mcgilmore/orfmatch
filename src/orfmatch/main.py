@@ -3,6 +3,7 @@ from Bio import SeqIO
 from orfmatch.utils import *
 from orfmatch.annotation import Annotator
 from orfmatch.plots import Circle, Line
+from orfmatch.alignment import Aligner
 import os
 from importlib.metadata import version
 
@@ -89,22 +90,29 @@ def main():
 
     prodigal_records = annotator.annotate()
 
-    # if args.detect_novel:
-    #    from orfmatch.alignment import Aligner
-    #
-    #    log("Finding regions not present in reference...")
-    #    novel = Aligner().find_novel_regions(contigs, reference_gbff, min_length=100)
-#
-    #    for record in prodigal_records:
-    #        for start, end in novel.get(record.id, []):
-    #            location = FeatureLocation(start, end, strand=1)
-    #            feature = SeqFeature(
-    #                location=location,
-    #                type="novel_region",
-    #                qualifiers={"note": ["No alignment to reference genome"]}
-    #            )
-    #            record.features.append(feature)
-    #    log("[✓] Novel regions added to feature list")
+    # Write DNA FASTA files for difference segments when --unique is set
+    if args.unique:
+        if reference_ext in (".gbff", ".gbk", ".genbank"):
+            out_prefix = f"{output_base}_unique"
+            log(f"Computing difference segments using minimap2 and writing FASTAs with prefix '{out_prefix}'...")
+            try:
+                paths = Aligner(preset="asm5").write_difference_fastas(
+                    query_records=contigs,
+                    reference_gbff=reference_gbff,
+                    out_prefix=out_prefix,
+                    min_length_novel=100,
+                    min_length_variant=1,
+                    rc_reference_minus_strand=False,
+                )
+                if paths:
+                    for kind, path in paths.items():
+                        log(f"[✓] Wrote {kind}: {path}")
+                else:
+                    log("No difference segments above thresholds; no FASTA files written.")
+            except Exception as e:
+                log(f"Failed to write difference FASTAs: {e}")
+        else:
+            log("A GBFF reference is required to extract reference sequences. Provide a *.gbff reference file.")
 
     if args.circle or args.line:
         if reference_ext in (".faa", ".fasta", ".fa"):
