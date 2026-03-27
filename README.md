@@ -14,7 +14,7 @@ or from github:
 
 ## Usage
 
-- Input is an assembly in \*.fasta format, output is a are in GenBank format (\*.gbff).
+- Input is an assembly in \*.fasta format, output is in GenBank format (\*.gbff).
 - Reference file can be a genome in GenBank format (\*.gbff) or a fasta file containing protein sequences (\*.fasta or \*.faa).
 
 `orfmatch --input <assembly.fasta> --reference <reference.gbff/.fasta> --output <output.gbff>`
